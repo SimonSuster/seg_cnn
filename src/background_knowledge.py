@@ -91,6 +91,8 @@ def drugbank_compa(prob, treat, drug_to_id, id_to_indication):
 
 def compatibility(c1, c2, c1t, c2t, rel, drug_to_id, id_to_indication):
     """
+        Set compatibility to the gold relation to find the maximum usefulness of this feature.
+
     :param c1: list of words constituting the first concept
     :param c2: list of words constituting a concept
     :param c1t: c1 type
@@ -99,14 +101,9 @@ def compatibility(c1, c2, c1t, c2t, rel, drug_to_id, id_to_indication):
 
     :return: a compatibility score
     """
-    if c1t == "problem" and c2t == "treatment":
-        compa = drugbank_compa(c1, c2, drug_to_id, id_to_indication)
-    elif c1t == "treatment" and c2t == "problem":
-        compa = drugbank_compa(c2, c1, drug_to_id, id_to_indication)
-    else:
-        compa = 0.
+    h_rel = {'TrIP': 1, 'TrWP': 2, 'TrCP': 3, 'TrAP': 4, 'TrNAP': 5, 'None': -1, 'TeRP': 1, 'TeCP': 2, 'PIP': 1}
 
-    return compa
+    return float(h_rel[rel])
 
 
 if __name__ == "__main__":

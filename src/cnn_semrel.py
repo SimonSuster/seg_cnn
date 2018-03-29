@@ -598,7 +598,7 @@ if __name__=="__main__":
                                                  sqr_norm_lim=9,
                                                  non_static=non_static,
                                                  batch_size=50,
-                                                 dropout_rate=[0.5])
+                                                 dropout_rate=[0.])
             print("msg: trp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
@@ -630,7 +630,7 @@ if __name__=="__main__":
                                                  sqr_norm_lim=9,
                                                  non_static=non_static,
                                                  batch_size=50,
-                                                 dropout_rate=[0.5])
+                                                 dropout_rate=[0.])
             print("msg: tep img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
@@ -662,7 +662,7 @@ if __name__=="__main__":
                                                  sqr_norm_lim=9,
                                                  non_static=non_static,
                                                  batch_size=50,
-                                                 dropout_rate=[0.5])
+                                                 dropout_rate=[0.])
             print("msg: pp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
