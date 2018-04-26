@@ -423,6 +423,7 @@ class LeNetConvPoolLayer(object):
         """
         predict for new data
         """
+
         img_shape = (batch_size, 1, self.image_shape[2], self.image_shape[3])
         conv_out = conv.conv2d(input=new_data, filters=self.W, filter_shape=self.filter_shape, image_shape=img_shape)
         if self.non_linear=="tanh":
