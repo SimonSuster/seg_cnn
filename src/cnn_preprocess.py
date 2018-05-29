@@ -307,8 +307,8 @@ def load_rel(fnrel, sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_d
                 if rel in trp_rel:
                     trp_data.append(datum)
                     if not htrp[senid].has_key(con_pair):
-                        print('no trp pair %s in %s' % (con_pair,iid))
-                    htrp[senid].pop(con_pair, None)
+                        print('no trp pair %s in %s' % (con_pair,iid))  # so what?
+                    htrp[senid].pop(con_pair, None)  # to make easier adding none rels later
                     trp_mid_lmax = max(trp_mid_lmax, midlen)
                 elif rel in tep_rel:
                     tep_data.append(datum)
@@ -327,6 +327,7 @@ def load_rel(fnrel, sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_d
                     print('unrecognized rel %s' % (rel))
             else:
                 print('non-matching line %d in %s' % (lc, fnrel))
+        # updates trp_data as a side effect with new None data instances
         add_none_rel(fnroot, htrp, sens, trp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac)
         add_none_rel(fnroot, htep, sens, tep_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac)
         add_none_rel(fnroot, hpp, sens, pp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac)
@@ -361,9 +362,11 @@ def build_data(dn, vocab, hlen, mask=False, padlen=0, hstop={}, skip_concept=Fal
                 ln = ln.rstrip(' \n')
                 sens.append(ln)
 
+        # hproblem: contains all gold problem concepts for a file/doc
+        # htrp: contains all possible pairs for a file/doc, updated in load_con as a side effect
         (hproblem, htreatment, htest) = load_con('%s/%s' % (dncon, fncon), htrp, htep, hpp)
 
-        # side effect: updates trp/tep/pp_data:
+        # side effect: updates trp/tep/pp_data; adds None rels:
         load_rel('%s/%s' % (dnrel, fnrel), sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_data, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, pip_reorder=pip_reorder, scale_fac=scale_fac)
 
     print(fc)
