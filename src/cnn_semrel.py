@@ -405,10 +405,12 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
 
             if selftrain:  # annotate raw text
                 selftrain_preds = defaultdict(list)
-                test_pred = test_model_all(c1_te, c2_te, prec_te, mid_te, succ_te, compa1_te, compa2_te, semclass1_te,
-                                           semclass2_te, semclass3_te, semclass4_te, semclass5_te)
+                #test_pred = test_model_all(c1_te, c2_te, prec_te, mid_te, succ_te, compa1_te, compa2_te, semclass1_te,
+                #                           semclass2_te, semclass3_te, semclass4_te, semclass5_te)
+                st_pred = test_model_all(c1_st, c2_st, prec_st, mid_st, succ_st, compa1_st, compa2_st, semclass1_st,
+                                         semclass2_st, semclass3_st, semclass4_st, semclass5_st)
                 # write out non-None predictions
-                assert len(rel_te) == len(test_pred)
+                assert len(rel_te) == len(st_pred)
                 for c, i in enumerate(rel_te):
                     if relname == "trp":
                         inv_d_rel = inv_htrp_rel
@@ -418,7 +420,7 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
                         inv_d_rel = inv_hpp_rel
                     else:
                         raise NotImplementedError
-                    r = inv_d_rel[test_pred[c]]
+                    r = inv_d_rel[st_pred[c]]
                     if r == "None":
                         continue
                     # sent as a unannotated list
