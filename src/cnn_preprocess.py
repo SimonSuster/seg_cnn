@@ -420,7 +420,7 @@ def build_train_test_dev(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets
     print('dev_p %d' % (len(pp_rel_de)))
 
     # selftraining on unannotated data
-    trp_rel_st, tep_rel_st, pp_rel_st = build_data('%s/concept_assertion_relation_dev_data' % (cdn), vocab, hlen,
+    trp_rel_st, tep_rel_st, pp_rel_st = build_data('%s/concept_assertion_relation_training_data/unannotated/' % (cdn), vocab, hlen,
                                                    mask=True, padlen=padlen, hstop=hstop, skip_concept=skip_concept,
                                                    pip_reorder=pip_reorder, scale_fac=scale_fac)
     print('dev_tr %d' % (len(trp_rel_de)))
@@ -552,7 +552,20 @@ def clamp_to_con(d_clamp, d_out):
             for i in insts:
                 f_out.write(i + "\n")
 
+def empty_rel(ref, d_out):
+    """
+    Generate empty rel files into d_out for all txt files (ref)
+    """
+    if not os.path.exists(d_out):
+        os.makedirs(d_out)
+    for f in get_file_list(ref):
+        f_rel = d_out + os.path.basename(os.path.splitext(f)[0]) + ".rel"
+        with open(f_rel, "w") as f_out:
+            f_out.write("")
+
 
 if __name__ == "__main__":
-    clamp_to_con(d_clamp="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated_clamp/",
-                 d_out = "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/concept/")
+    #clamp_to_con(d_clamp="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated_clamp/",
+    #             d_out = "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/concept/")
+    empty_rel(ref="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/txt/",
+              d_out = "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
