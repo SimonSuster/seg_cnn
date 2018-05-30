@@ -490,4 +490,61 @@ def embed_train_test_dev(fnem, fnwid='../data/vocab.txt', fndata='../data/semrel
     print "dataset created!"
     return mem, hwoov, hwid
 
+def clamp_to_con(d_clamp, d_out):
+    """
+    Convert clamp output that we obtained from unannotated txt files for self-training to the 'con' format of i2b2-2010.
 
+    """
+    for f_clamp in get_file_list(d_clamp):
+        sent_ids = []
+        tok_ids = []
+        insts = []
+        with open(f_clamp) as in_f:
+            ls = in_f.readlines()
+
+        for l in ls:
+            l = l.strip().split("\t")
+            if l[0].startswith("Sentence"):
+                sent_ids.append((int(l[1]), int(l[2])))
+            elif l[0].startswith("Token"):
+                tok_ids.append((int(l[1]), int(l[2])))
+
+        for l in ls:
+            l = l.strip().split("\t")
+            if l[0] == "NamedEntity":
+                e_s_i, e_e_i = l[1:3]
+                e_s_i = int(e_s_i)  # start char idx of the entity
+                e_e_i = int(e_e_i)  # end char idx of the entity
+                vals = {i.split("=")[0]: i.split("=")[1] for i in l[3:]}  # semantic, assertion, cui, ne; val can also be missing
+                for c, (s_s_i, s_e_i) in enumerate(sent_ids, 1):
+                    if s_s_i <= e_s_i <= s_e_i:
+                        assert e_e_i <= s_e_i
+                        s_num = c
+                        break
+                n_prev_toks = 0
+                for c, (t_s_i, t_e_i) in enumerate(tok_ids):
+                    if t_s_i >= s_s_i:
+                        n_prev_toks += 1
+                        if t_s_i <= e_s_i <= t_e_i:
+                            t_s_num = n_prev_toks-1
+                        if t_s_i <= e_e_i <= t_e_i:
+                            t_e_num = n_prev_toks-1
+                inst = "c=\"{e_str}\" {s_num}:{t_s_num} {s_num}:{t_e_num}||t=\"{sem_cat}\"".format(
+                    e_str=vals["ne"],
+                    s_num=s_num,
+                    t_s_num=t_s_num,
+                    t_e_num=t_e_num,
+                    sem_cat=vals["semantic"]
+                )
+                insts.append(inst)
+            else:
+                break
+        f_con = d_out + os.path.basename(os.path.splitext(f_clamp)[0]) + ".con"
+        with open(f_con, "w") as f_out:
+            for i in insts:
+                f_out.write(i + "\n")
+
+
+if __name__ == "__main__":
+    clamp_to_con(d_clamp="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated_clamp/",
+                 d_out = "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated_con/")
