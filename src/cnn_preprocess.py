@@ -196,7 +196,7 @@ def build_inst(iid, c1s, c1e, c2s, c2e, sen, vocab, hlen, rel='None', padlen=0, 
               'semclass5': semclass5}
     return datum;
 
-def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, scale_fac=1):
+def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, scale_fac=1, lemmatizer=None):
     for senid in hpair:
         for con_pair in hpair[senid]:
             c1s = con_pair[0][0]
@@ -209,7 +209,7 @@ def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, 
             if mid_lmax != None and midlen > mid_lmax:
                 continue
 
-            datum = build_inst(iid, c1s, c1e, c2s, c2e, sen, vocab, hlen, padlen=padlen, hstop=hstop, hproblem=hproblem[senid], htreatment=htreatment[senid], htest=htest[senid], mask=mask, skip_concept=skip_concept, scale_fac=scale_fac)
+            datum = build_inst(iid, c1s, c1e, c2s, c2e, sen, vocab, hlen, padlen=padlen, hstop=hstop, hproblem=hproblem[senid], htreatment=htreatment[senid], htest=htest[senid], mask=mask, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=lemmatizer)
 
             if datum != None:
                 rels.append(datum)
@@ -328,9 +328,9 @@ def load_rel(fnrel, sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_d
             else:
                 print('non-matching line %d in %s' % (lc, fnrel))
         # updates trp_data as a side effect with new None data instances
-        add_none_rel(fnroot, htrp, sens, trp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac)
-        add_none_rel(fnroot, htep, sens, tep_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac)
-        add_none_rel(fnroot, hpp, sens, pp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac)
+        add_none_rel(fnroot, htrp, sens, trp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=wordnet_lemmatizer)
+        add_none_rel(fnroot, htep, sens, tep_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=wordnet_lemmatizer)
+        add_none_rel(fnroot, hpp, sens, pp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=wordnet_lemmatizer)
     return;
 
                             
@@ -420,7 +420,7 @@ def build_train_test_dev(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets
     print('dev_p %d' % (len(pp_rel_de)))
 
     # selftraining on unannotated data
-    trp_rel_st, tep_rel_st, pp_rel_st = build_data('%s/concept_assertion_relation_training_data/unannotated/' % (cdn), vocab, hlen,
+    trp_rel_st, tep_rel_st, pp_rel_st = build_data('%s/concept_assertion_relation_training_data/partners/unannotated/' % (cdn), vocab, hlen,
                                                    mask=True, padlen=padlen, hstop=hstop, skip_concept=skip_concept,
                                                    pip_reorder=pip_reorder, scale_fac=scale_fac)
     print('dev_tr %d' % (len(trp_rel_de)))
