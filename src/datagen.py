@@ -10,5 +10,5 @@ fnwem = '/nas/corpora/accumulate/clicr/embeddings/b1654752-6f92-11e7-ac2f-901b0e
 fndata='../data/semrel_pp%s_pad%s.p' % (img_w, pad)
 scale_fac=100
 
-mem, hwoov, hwid = cp.embed_train_test_dev(fnwem, fndata=fndata, padlen=pad, scale_fac=scale_fac)
+mem, hwoov, hwid = cp.embed_train_test_dev(fnwem, fndata=fndata, padlen=pad, scale_fac=scale_fac, selftrain=True)
 
