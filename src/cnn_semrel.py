@@ -78,7 +78,8 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
                    sqr_norm_lim=9,
                    non_static=True,
                    selftrain=True,
-                   relname=None):
+                   relname=None,
+                   rel_st=None):
     """
     Train a simple conv net
     img_h = sentence length (padded where necessary)
@@ -198,7 +199,7 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
 
     tr_size = datasets[0].shape[0]
     de_size = datasets[2].shape[0]
-    hi_seg = datasets[3]
+    hi_seg = datasets[4]
     print(hi_seg)
     c1s, c1e = hi_seg['c1'];
     c2s, c2e = hi_seg['c2'];
@@ -253,6 +254,21 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
     semclass4_te = np.asarray(test_set[:, semclass4i], "float32")
     semclass5_te = np.asarray(test_set[:, semclass5i], "float32")
 
+    c1_st = datasets[3][:, c1s:c1e]
+    c2_st = datasets[3][:, c2s:c2e]
+    prec_st = datasets[3][:, precs:prece]
+    mid_st = datasets[3][:, mids:mide]
+    succ_st = datasets[3][:, succs:succe]
+    selft_set = datasets[3]
+    y_st = np.asarray(selft_set[:, yi], "int32")
+    compa1_st = np.asarray(selft_set[:, compa1i], "float32")
+    compa2_st = np.asarray(selft_set[:, compa2i], "float32")
+    semclass1_st = np.asarray(selft_set[:, semclass1i], "float32")
+    semclass2_st = np.asarray(selft_set[:, semclass2i], "float32")
+    semclass3_st = np.asarray(selft_set[:, semclass3i], "float32")
+    semclass4_st = np.asarray(selft_set[:, semclass4i], "float32")
+    semclass5_st = np.asarray(selft_set[:, semclass5i], "float32")
+
     train_set = new_data[:n_train_batches * batch_size, :]
     dev_set = new_data_de[:n_dev_batches * batch_size:, :]
     x_tr, y_tr = shared_dataset((train_set[:, :img_h_tot], train_set[:, -1]))
@@ -260,6 +276,7 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
     iid_tr = train_set[:, idi].flatten()
     iid_de = dev_set[:, idi].flatten()
     iid_te = test_set[:, idi].flatten()
+    #iid_st = selft_set[:, idi].flatten()
     print('len iid_de %d' % (len(iid_de)))
 
     # compile theano functions to get train/val/test errors
@@ -353,6 +370,47 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
         [c1, c2, prec, mid, succ, compa1, compa2, semclass1, semclass2, semclass3, semclass4, semclass5], test_y_pred,
         allow_input_downcast=True)
 
+    selft_pred_layers = []
+    selft_size = len(y_st)
+    c1_st_input = Words[T.cast(c1.flatten(), dtype="int32")].reshape(
+        (c1_st.shape[0], 1, c1_st.shape[1], Words.shape[1]))
+    c2_st_input = Words[T.cast(c2.flatten(), dtype="int32")].reshape(
+        (c2_st.shape[0], 1, c2_st.shape[1], Words.shape[1]))
+    prec_st_input = Words[T.cast(prec.flatten(), dtype="int32")].reshape(
+        (prec_st.shape[0], 1, prec_st.shape[1], Words.shape[1]))
+    mid_st_input = Words[T.cast(mid.flatten(), dtype="int32")].reshape(
+        (mid_st.shape[0], 1, mid_st.shape[1], Words.shape[1]))
+    succ_st_input = Words[T.cast(succ.flatten(), dtype="int32")].reshape(
+        (succ_st.shape[0], 1, succ_st.shape[1], Words.shape[1]))
+    selft_layer0_input = {'c1': c1_st_input, 'c2': c2_st_input, 'prec': prec_st_input, 'mid': mid_st_input,
+                         'succ': succ_st_input}
+
+    cl_id = 0  # conv layer id
+    for i in xrange(len(filter_hs)):
+        for seg in hlen.keys():
+            conv_layer = conv_layers[cl_id]
+            selft_layer0_output = conv_layer.predict(selft_layer0_input[seg],
+                                                    selft_size)  ## doesn't seeem to matter if just use layer0_input here
+            selft_pred_layers.append(selft_layer0_output.flatten(2))
+            cl_id += 1
+    selft_layer1_input = T.concatenate(selft_pred_layers, 1)
+    # selft_layer1_input = T.horizontal_stack(selft_layer1_input, compa_te.reshape((compa_te.shape[0], 1)))
+    selft_layer1_input = T.horizontal_stack(selft_layer1_input,
+                                           compa1.reshape((compa1.shape[0], 1)),
+                                           compa2.reshape((compa2.shape[0], 1)),
+                                           semclass1.reshape((semclass1.shape[0], 1)),
+                                           semclass2.reshape((semclass2.shape[0], 1)),
+                                           semclass3.reshape((semclass3.shape[0], 1)),
+                                           semclass4.reshape((semclass4.shape[0], 1)),
+                                           semclass5.reshape((semclass5.shape[0], 1)))
+    selft_y_pred = classifier.predict(selft_layer1_input)
+
+    selft_error = T.mean(T.neq(selft_y_pred, y))
+    selft_model_all = theano.function(
+        [c1, c2, prec, mid, succ, compa1, compa2, semclass1, semclass2, semclass3, semclass4, semclass5], selft_y_pred,
+        allow_input_downcast=True)
+
+
     # start training over mini-batches
     print '... training'
     epoch = 0
@@ -407,11 +465,11 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
                 selftrain_preds = defaultdict(list)
                 #test_pred = test_model_all(c1_te, c2_te, prec_te, mid_te, succ_te, compa1_te, compa2_te, semclass1_te,
                 #                           semclass2_te, semclass3_te, semclass4_te, semclass5_te)
-                st_pred = test_model_all(c1_st, c2_st, prec_st, mid_st, succ_st, compa1_st, compa2_st, semclass1_st,
+                st_pred = selft_model_all(c1_st, c2_st, prec_st, mid_st, succ_st, compa1_st, compa2_st, semclass1_st,
                                          semclass2_st, semclass3_st, semclass4_st, semclass5_st)
                 # write out non-None predictions
-                assert len(rel_te) == len(st_pred)
-                for c, i in enumerate(rel_te):
+                assert len(rel_st) == len(st_pred)
+                for c, i in enumerate(rel_st):
                     if relname == "trp":
                         inv_d_rel = inv_htrp_rel
                     elif relname == "tep":
@@ -423,7 +481,7 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
                     r = inv_d_rel[st_pred[c]]
                     if r == "None":
                         continue
-                    # sent as a unannotated list
+                    # sent as an unannotated list
                     un_sent = i["sen"].replace("[ ", "").replace(" ]treatment", "").replace(" ]problem", "").replace(" ]test", "").split()
                     # get iid: '0449.rel:43 (6,7) (12,13)'
                     inst_id = i["iid"]
@@ -616,24 +674,24 @@ def merge_segs(c1, c2, prec, mid, succ, y, iid, compa1, compa2, semclass1, semcl
 
 
 def make_idx_data_train_test_dev(rel_tr, rel_te, rel_de, word_idx_map, hlen, hrel, k=300, filter_h=5,
-                                 down_sampling=None, n_train=None):
+                                 down_sampling=None, n_train=None, rel_st=None):
     """
     Transforms sentences into a 2-d matrix.
     """
-    c1_tr, c1_te, c1_de = [], [], []
-    c2_tr, c2_te, c2_de = [], [], []
-    prec_tr, prec_te, prec_de = [], [], []
-    mid_tr, mid_te, mid_de = [], [], []
-    succ_tr, succ_te, succ_de = [], [], []
-    y_tr, y_te, y_de = [], [], []
-    iid_tr, iid_te, iid_de = [], [], []
-    compa1_tr, compa1_te, compa1_de = [], [], []
-    compa2_tr, compa2_te, compa2_de = [], [], []
-    semclass1_tr, semclass1_te, semclass1_de = [], [], []
-    semclass2_tr, semclass2_te, semclass2_de = [], [], []
-    semclass3_tr, semclass3_te, semclass3_de = [], [], []
-    semclass4_tr, semclass4_te, semclass4_de = [], [], []
-    semclass5_tr, semclass5_te, semclass5_de = [], [], []
+    c1_tr, c1_te, c1_de, c1_st = [], [], [], []
+    c2_tr, c2_te, c2_de, c2_st = [], [], [], []
+    prec_tr, prec_te, prec_de, prec_st = [], [], [], []
+    mid_tr, mid_te, mid_de, mid_st = [], [], [], []
+    succ_tr, succ_te, succ_de, succ_st = [], [], [], []
+    y_tr, y_te, y_de, y_st = [], [], [], []
+    iid_tr, iid_te, iid_de, iid_st = [], [], [], []
+    compa1_tr, compa1_te, compa1_de, compa1_st = [], [], [], []
+    compa2_tr, compa2_te, compa2_de, compa2_st = [], [], [], []
+    semclass1_tr, semclass1_te, semclass1_de, semclass1_st = [], [], [], []
+    semclass2_tr, semclass2_te, semclass2_de, semclass2_st = [], [], [], []
+    semclass3_tr, semclass3_te, semclass3_de, semclass3_st = [], [], [], []
+    semclass4_tr, semclass4_te, semclass4_de, semclass4_st = [], [], [], []
+    semclass5_tr, semclass5_te, semclass5_de, semclass5_st = [], [], [], []
 
     for rel in rel_tr:
         c1_tr.append(get_idx_from_segment(rel['c1'], word_idx_map, hlen['c1'], k, filter_h))
@@ -745,21 +803,61 @@ def make_idx_data_train_test_dev(rel_tr, rel_te, rel_de, word_idx_map, hlen, hre
     semclass5_de = np.asarray(semclass5_de);
     semclass5_de = semclass5_de.reshape(len(semclass5_de), 1)
 
+    for rel in rel_st:
+        c1_st.append(get_idx_from_segment(rel['c1'], word_idx_map, hlen['c1'], k, filter_h))
+        c2_st.append(get_idx_from_segment(rel['c2'], word_idx_map, hlen['c2'], k, filter_h))
+        prec_st.append(get_idx_from_segment(rel['prec'], word_idx_map, hlen['prec'], k, filter_h))
+        mid_st.append(get_idx_from_segment(rel['mid'], word_idx_map, hlen['mid'], k, filter_h))
+        succ_st.append(get_idx_from_segment(rel['succ'], word_idx_map, hlen['succ'], k, filter_h))
+        y_st.append(hrel[rel['rel']])
+        iid_st.append(rel['iid'])
+        compa1_st.append(rel['compa1'])
+        compa2_st.append(rel['compa2'])
+        semclass1_st.append(rel['semclass1'])
+        semclass2_st.append(rel['semclass2'])
+        semclass3_st.append(rel['semclass3'])
+        semclass4_st.append(rel['semclass4'])
+        semclass5_st.append(rel['semclass5'])
+    print(np.unique(y_st, return_counts=True))
+    y_st = np.asarray(y_st);
+    y_st = y_st.reshape(len(y_st), 1)
+    iid_st = np.asarray(iid_st);
+    iid_st = iid_st.reshape(len(iid_st), 1)
+    compa1_st = np.asarray(compa1_st);
+    compa1_st = compa1_st.reshape(len(compa1_st), 1)
+    compa2_st = np.asarray(compa2_st);
+    compa2_st = compa2_st.reshape(len(compa2_st), 1)
+    semclass1_st = np.asarray(semclass1_st);
+    semclass1_st = semclass1_st.reshape(len(semclass1_st), 1)
+    semclass2_st = np.asarray(semclass2_st);
+    semclass2_st = semclass2_st.reshape(len(semclass2_st), 1)
+    semclass3_st = np.asarray(semclass3_st);
+    semclass3_st = semclass3_st.reshape(len(semclass3_st), 1)
+    semclass4_st = np.asarray(semclass4_st);
+    semclass4_st = semclass4_st.reshape(len(semclass4_st), 1)
+    semclass5_st = np.asarray(semclass5_st);
+    semclass5_st = semclass5_st.reshape(len(semclass5_st), 1)
+
     c1_tr = np.array(c1_tr, dtype="int");
     c1_te = np.array(c1_te, dtype="int");
     c1_de = np.array(c1_de, dtype="int")
+    c1_st = np.array(c1_st, dtype="int")
     c2_tr = np.array(c2_tr, dtype="int");
     c2_te = np.array(c2_te, dtype="int");
     c2_de = np.array(c2_de, dtype="int")
+    c2_st = np.array(c2_st, dtype="int")
     prec_tr = np.array(prec_tr, dtype="int");
     prec_te = np.array(prec_te, dtype="int");
     prec_de = np.array(prec_de, dtype="int")
+    prec_st = np.array(prec_st, dtype="int")
     mid_tr = np.array(mid_tr, dtype="int");
     mid_te = np.array(mid_te, dtype="int");
     mid_de = np.array(mid_de, dtype="int")
+    mid_st = np.array(mid_st, dtype="int")
     succ_tr = np.array(succ_tr, dtype="int");
     succ_te = np.array(succ_te, dtype="int");
     succ_de = np.array(succ_de, dtype="int")
+    succ_st = np.array(succ_st, dtype="int")
     train, hi_seg_tr = merge_segs(c1_tr, c2_tr, prec_tr, mid_tr, succ_tr, y_tr, iid_tr, compa1_tr, compa2_tr,
                                   semclass1_tr, semclass2_tr, semclass3_tr, semclass4_tr, semclass5_tr,
                                   down_sampling=down_sampling)
@@ -767,7 +865,9 @@ def make_idx_data_train_test_dev(rel_tr, rel_te, rel_de, word_idx_map, hlen, hre
                                  semclass1_te, semclass2_te, semclass3_te, semclass4_te, semclass5_te)
     dev, hi_seg_de = merge_segs(c1_de, c2_de, prec_de, mid_de, succ_de, y_de, iid_de, compa1_de, compa2_de,
                                 semclass1_de, semclass2_de, semclass3_de, semclass4_de, semclass5_de)
-    return [train[:n_train] if n_train is not None else train, test, dev, hi_seg_tr, hi_seg_te, hi_seg_de]
+    selftr, hi_seg_st = merge_segs(c1_st, c2_st, prec_st, mid_st, succ_st, y_st, iid_st, compa1_st, compa2_st,
+                                 semclass1_st, semclass2_st, semclass3_st, semclass4_st, semclass5_st)
+    return [train[:n_train] if n_train is not None else train, test, dev, selftr, hi_seg_tr, hi_seg_te, hi_seg_de, hi_seg_st]
 
 
 def write_selftrain(dirname, preds):
@@ -822,11 +922,24 @@ if __name__ == "__main__":
         print('example: -n_train1000')
         sys.exit(1)
 
+    selftrain = sys.argv[9]
+    mo = re.search('-selftrain(\w+)', selftrain)
+    if mo:
+        selftrain = eval(mo.group(1))
+    else:
+        print('example: -selftrainTrue')
+        sys.exit(1)
+    assert selftrain in {True, False}
+
     fndata = '../data/semrel_pp%s_pad%s.p' % (img_w, pad)
     fdata = open(fndata, "rb")
     x = cPickle.load(fdata)
     fdata.close()
-    trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen, mem, hwoov, hwid = \
+    if selftrain:
+        trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen, mem, hwoov, hwid, trp_rel_st, tep_rel_st, pp_rel_st = \
+            x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15], x[16]
+    else:
+        trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen, mem, hwoov, hwid = \
     x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13]
     for cts in hlen.keys():
         hlen[cts]['c1'] += 2 * pad
@@ -850,7 +963,11 @@ if __name__ == "__main__":
     results = []
 
     if task == '-trp':
-        trp_data = make_idx_data_train_test_dev(trp_rel_tr, trp_rel_te, trp_rel_de, hwid, hlen['problem_treatment'],
+        if selftrain:
+            trp_data = make_idx_data_train_test_dev(trp_rel_tr, trp_rel_te, trp_rel_de, hwid, hlen['problem_treatment'],
+                                                htrp_rel, k=img_w, filter_h=5, down_sampling=None, n_train=n_train, rel_st=trp_rel_st)
+        else:
+            trp_data = make_idx_data_train_test_dev(trp_rel_tr, trp_rel_te, trp_rel_de, hwid, hlen['problem_treatment'],
                                                 htrp_rel, k=img_w, filter_h=5, down_sampling=None, n_train=n_train)
         mipre_runs = []
         mirec_runs = []
@@ -872,15 +989,16 @@ if __name__ == "__main__":
                                                                              hidden_units=[l1_nhu, 6],
                                                                              activations=[ReLU],
                                                                              shuffle_batch=True,
-                                                                             n_epochs=1,
+                                                                             n_epochs=30,
                                                                              sqr_norm_lim=9,
                                                                              non_static=non_static,
                                                                              batch_size=50,
                                                                              dropout_rate=[0.0],
                                                                              selftrain=True,
-                                                                             relname="trp")
+                                                                             relname="trp",
+                                                                             rel_st=trp_rel_st if selftrain else None)
             if selftrain_preds is not None:
-                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Tools/seg_cnn/data/trp_selftrain/", selftrain_preds)
+                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds)
             print(
                         "msg: trp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
                 img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
@@ -919,7 +1037,8 @@ if __name__ == "__main__":
                                                                              batch_size=50,
                                                                              dropout_rate=[0.0],
                                                                              selftrain=True,
-                                                                             relname="tep")
+                                                                             relname="tep",
+                                                                             rel_st=tep_rel_st if selftrain else None)
             if selftrain_preds is not None:
                 write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Tools/seg_cnn/data/tep_selftrain/", selftrain_preds)
             print(
@@ -959,7 +1078,8 @@ if __name__ == "__main__":
                                                                              batch_size=50,
                                                                              dropout_rate=[0.0],
                                                                              selftrain=True,
-                                                                             relname="pp")
+                                                                             relname="pp",
+                                                                             rel_st=pp_rel_st if selftrain else None)
             if selftrain_preds is not None:
                 write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Tools/seg_cnn/data/pp_selftrain/", selftrain_preds)
             print(
