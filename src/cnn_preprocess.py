@@ -486,10 +486,10 @@ def build_train_test_dev(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets
         print('st_te %d' % (len(tep_rel_st)))
         print('st_p %d' % (len(pp_rel_st)))
 
-        print("including selftrain to train")
-        trp_rel_tr += trp_rel_st
-        tep_rel_tr += tep_rel_st
-        pp_rel_tr += pp_rel_st
+        #print("including selftrain to train")
+        #trp_rel_tr += trp_rel_st
+        #tep_rel_tr += tep_rel_st
+        #pp_rel_tr += pp_rel_st
 
         return trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen, trp_rel_st, tep_rel_st, pp_rel_st
     else:

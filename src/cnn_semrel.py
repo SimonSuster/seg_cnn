@@ -1010,7 +1010,11 @@ if __name__ == "__main__":
             mif_de_runs.append(mif_de)
 
     if task == '-tep':
-        tep_data = make_idx_data_train_test_dev(tep_rel_tr, tep_rel_te, tep_rel_de, hwid, hlen['problem_test'],
+        if selftrain:
+            tep_data = make_idx_data_train_test_dev(tep_rel_tr, tep_rel_te, tep_rel_de, hwid, hlen['problem_test'],
+                                                    htep_rel, k=img_w, filter_h=5, rel_st=tep_rel_st)
+        else:
+            tep_data = make_idx_data_train_test_dev(tep_rel_tr, tep_rel_te, tep_rel_de, hwid, hlen['problem_test'],
                                                 htep_rel, k=img_w, filter_h=5)
         mipre_runs = []
         mirec_runs = []
@@ -1031,7 +1035,7 @@ if __name__ == "__main__":
                                                                              conv_non_linear="relu",
                                                                              hidden_units=[l1_nhu, 3],
                                                                              shuffle_batch=True,
-                                                                             n_epochs=1,
+                                                                             n_epochs=30,
                                                                              sqr_norm_lim=9,
                                                                              non_static=non_static,
                                                                              batch_size=50,
@@ -1040,7 +1044,7 @@ if __name__ == "__main__":
                                                                              relname="tep",
                                                                              rel_st=tep_rel_st if selftrain else None)
             if selftrain_preds is not None:
-                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Tools/seg_cnn/data/tep_selftrain/", selftrain_preds)
+                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds)
             print(
                         "msg: tep img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
                 img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
@@ -1052,7 +1056,11 @@ if __name__ == "__main__":
             mif_de_runs.append(mif_de)
 
     if task == '-pp':
-        pp_data = make_idx_data_train_test_dev(pp_rel_tr, pp_rel_te, pp_rel_de, hwid, hlen['problem_problem'], hpp_rel,
+        if selftrain:
+            pp_data = make_idx_data_train_test_dev(pp_rel_tr, pp_rel_te, pp_rel_de, hwid, hlen['problem_problem'],
+                                                   hpp_rel, k=img_w, filter_h=5, down_sampling=4, rel_st=tep_rel_st)
+        else:
+            pp_data = make_idx_data_train_test_dev(pp_rel_tr, pp_rel_te, pp_rel_de, hwid, hlen['problem_problem'], hpp_rel,
                                                k=img_w, filter_h=5, down_sampling=4)
         mipre_runs = []
         mirec_runs = []
@@ -1072,7 +1080,7 @@ if __name__ == "__main__":
                                                                              conv_non_linear="relu",
                                                                              hidden_units=[l1_nhu, 2],
                                                                              shuffle_batch=True,
-                                                                             n_epochs=1,
+                                                                             n_epochs=30,
                                                                              sqr_norm_lim=9,
                                                                              non_static=non_static,
                                                                              batch_size=50,
@@ -1081,7 +1089,7 @@ if __name__ == "__main__":
                                                                              relname="pp",
                                                                              rel_st=pp_rel_st if selftrain else None)
             if selftrain_preds is not None:
-                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Tools/seg_cnn/data/pp_selftrain/", selftrain_preds)
+                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds)
             print(
                         "msg: pp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
                 img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
