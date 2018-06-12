@@ -637,9 +637,55 @@ def empty_rel(ref, d_out):
             f_out.write("")
 
 
+def separate_fs_relcat(cdn, d_out):
+    """
+    Splits a *.rel file with instances of multiple rel categories (Trp, Tep, Pp) into separate files/directories.
+    This is done to enable evaluation with the official i2b2 script where an overall score is obtained per rel category.
+
+    :param cdn: dir with *.rel files
+    :param d_out: a subdir is created within d_out holding files of a particular relation category
+    """
+    fs = get_file_list(cdn, identifiers=[".rel"])
+
+    for f in fs:
+        bn = os.path.basename(f)
+        d_trp = d_out + "/trp/"
+        if not os.path.exists(d_trp):
+            os.makedirs(d_trp)
+        f_trp = d_trp + bn
+
+        d_tep = d_out + "/tep/"
+        if not os.path.exists(d_tep):
+            os.makedirs(d_tep)
+        f_tep = d_tep + bn
+
+        d_pp = d_out + "/pp/"
+        if not os.path.exists(d_pp):
+            os.makedirs(d_pp)
+        f_pp = d_pp + bn
+
+        with open(f) as fh, open(f_trp, "w") as fh_trp, open(f_tep, "w") as fh_tep, open(f_pp, "w") as fh_pp:
+            for l in fh:
+                mo = re.search(r'c=".*?" \d+:\d+ \d+:\d+\|\|r="(.*?)"\|\|c=".*?" \d+:\d+ \d+:\d+', l)
+                if mo:
+                    rel = mo.group(1)  # relation name
+                    if rel.startswith("Tr"):
+                        fh_trp.write(l)
+                    elif rel.startswith("Te"):
+                        fh_tep.write(l)
+                    elif rel.startswith("P"):
+                        fh_pp.write(l)
+                    else:
+                        raise NotImplementedError
+                else:
+                    print("Unrecognized relation: {}".format(l))
+
+
+
 if __name__ == "__main__":
     #clamp_to_con(d_clamp="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated_clamp/",
     #             d_out = "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/concept/")
-    print("populating empty relations")
-    empty_rel(ref="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/txt/",
-              d_out = "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
+    #print("populating empty relations")
+    #empty_rel(ref="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/txt/",
+    #          d_out = "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
+    separate_fs_relcat(cdn="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/reference/test/", d_out="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/reference/test/")

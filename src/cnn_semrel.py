@@ -441,6 +441,12 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
             err_ind = [j for j, x in enumerate(dev_sb_errors) if x == 1]
             dev_sb = iid_de[i * batch_size:(i + 1) * batch_size]
             dev_preds = np.append(dev_preds, dev_sb_preds)
+        sorted_dev_preds = []
+        for i in rel_de:
+            r_id = i["iid"]
+            hit = np.asscalar(np.where(iid_de==r_id)[0][0])
+            sorted_dev_preds.append(dev_preds[hit])
+        _dev_preds = extract_preds(rel_de, sorted_dev_preds, relname)
 
         dev_perf = 1 - np.mean(y_de.eval() != dev_preds)
         dev_cm = su.confMat(y_de.eval(), dev_preds, hidden_units[1])
@@ -453,6 +459,7 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
             best_dev_perf = dev_mif
             test_pred = test_model_all(c1_te, c2_te, prec_te, mid_te, succ_te, compa1_te, compa2_te, semclass1_te,
                                        semclass2_te, semclass3_te, semclass4_te, semclass5_te)
+            test_preds = extract_preds(rel_te, test_pred, relname)
             test_errors = test_pred != y_te
             err_ind = [j for j, x in enumerate(test_errors) if x == 1]
             test_cm = su.confMat(y_te, test_pred, hidden_units[1])
@@ -466,8 +473,6 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
 
             if selftrain:  # annotate raw text
                 selftrain_preds = defaultdict(list)
-                #test_pred = test_model_all(c1_te, c2_te, prec_te, mid_te, succ_te, compa1_te, compa2_te, semclass1_te,
-                #                           semclass2_te, semclass3_te, semclass4_te, semclass5_te)
                 st_pred, st_pred_p = selft_model_all(c1_st, c2_st, prec_st, mid_st, succ_st, compa1_st, compa2_st, semclass1_st,
                                          semclass2_st, semclass3_st, semclass4_st, semclass5_st)
                 if relname == "trp":
@@ -517,7 +522,58 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
                 selftrain_preds = None
 
     cPickle.dump([y_te, test_pred], open(fnres, "wb"))
-    return (mipre, mirec, mif, mipre_de, mirec_de, mif_de, selftrain_preds)
+    return (mipre, mirec, mif, mipre_de, mirec_de, mif_de, test_preds, _dev_preds, selftrain_preds)
+
+
+def extract_preds(rel, pred, relname):
+    """
+
+    :param rel: rel_de, rel_te or rel_st
+    :param pred: test_pred, dev_pred, st_pred
+    :param relname: "trp", "tep" or "pp"
+
+    :return: {fn1: [ln1, ln2, ...]}
+    """
+    preds = defaultdict(list)
+    if relname == "trp":
+        inv_d_rel = inv_htrp_rel
+    elif relname == "tep":
+        inv_d_rel = inv_htep_rel
+    elif relname == "pp":
+        inv_d_rel = inv_hpp_rel
+    else:
+        raise NotImplementedError
+
+    # write out non-None predictions
+    assert len(rel) == len(pred)
+    for c, i in enumerate(rel):
+        r = inv_d_rel[pred[c]]
+        if r == "None":
+            continue
+        # sent as an unannotated list
+        un_sent = i["sen"].replace("[ ", "").replace(" ]treatment", "").replace(" ]problem", "").replace(" ]test",
+                                                                                                         "").split()
+        # get iid: '0449.rel:43 (6,7) (12,13)'
+        inst_id = i["iid"]
+        fname = inst_id.split(":")[0]
+        ln, local_c1_id, local_c2_id = inst_id.split(":")[1].split(" ")
+        local_c1_id = eval(local_c1_id)
+        local_c2_id = eval(local_c2_id)
+        c1_str = " ".join(un_sent[local_c1_id[0]:local_c1_id[1]])
+        c2_str = " ".join(un_sent[local_c2_id[0]:local_c2_id[1]])
+        # c="antibiotics" 80:15 80:15||r="TrAP"||c="left arm phlebitis" 80:8 80:10
+        ln_out = "c=\"{c1_str}\" {ln}:{local_c1_id_s} {ln}:{local_c1_id_e}||r=\"{r}\"||c=\"{c2_str}\" {ln}:{local_c2_id_s} {ln}:{local_c2_id_e}".format(
+            c1_str=c1_str,
+            ln=int(ln) + 1,
+            local_c1_id_s=local_c1_id[0],
+            local_c1_id_e=local_c1_id[1] - 1,  # reduce last index by one
+            r=r,
+            c2_str=c2_str,
+            local_c2_id_s=local_c2_id[0],
+            local_c2_id_e=local_c2_id[1] - 1)
+        preds[fname].append(ln_out)
+
+    return preds
 
 
 def shared_dataset(data_xy, iid=None, borrow=True):
@@ -881,7 +937,7 @@ def make_idx_data_train_test_dev(rel_tr, rel_te, rel_de, word_idx_map, hlen, hre
     return [train[:n_train] if n_train is not None else train, test, dev, selftr, hi_seg_tr, hi_seg_te, hi_seg_de, hi_seg_st]
 
 
-def write_selftrain(dirname, preds, add_missing_from=None):
+def write_preds(dirname, preds, add_missing_from=None):
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     for fn, pred in preds.items():
@@ -1003,7 +1059,7 @@ if __name__ == "__main__":
         mirec_de_runs = []
         mif_de_runs = []
         for n_run in range(n_runs):
-            (mipre, mirec, mif, mipre_de, mirec_de, mif_de, selftrain_preds) = train_conv_net(trp_data, trp_rel_tr, trp_rel_te,
+            (mipre, mirec, mif, mipre_de, mirec_de, mif_de, test_preds, _dev_preds, selftrain_preds) = train_conv_net(trp_data, trp_rel_tr, trp_rel_te,
                                                                              trp_rel_de,
                                                                              hlen['problem_treatment'],
                                                                              U,
@@ -1025,8 +1081,11 @@ if __name__ == "__main__":
                                                                              relname="trp",
                                                                              rel_st=trp_rel_st if selftrain else None,
                                                                              st_threshold=st_threshold)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/trp/", test_preds)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/dev/trp/", _dev_preds)
+
             if selftrain_preds is not None:
-                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
+                write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
             print(
                         "msg: trp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
                 img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
@@ -1051,7 +1110,7 @@ if __name__ == "__main__":
         mirec_de_runs = []
         mif_de_runs = []
         for n_run in range(n_runs):
-            (mipre, mirec, mif, mipre_de, mirec_de, mif_de, selftrain_preds) = train_conv_net(tep_data, tep_rel_tr, tep_rel_te,
+            (mipre, mirec, mif, mipre_de, mirec_de, mif_de, test_preds, _dev_preds, selftrain_preds) = train_conv_net(tep_data, tep_rel_tr, tep_rel_te,
                                                                              tep_rel_de,
                                                                              hlen['problem_test'],
                                                                              U,
@@ -1072,8 +1131,10 @@ if __name__ == "__main__":
                                                                              relname="tep",
                                                                              rel_st=tep_rel_st if selftrain else None,
                                                                              st_threshold=st_threshold)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/tep/", test_preds)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/dev/tep/", _dev_preds)
             if selftrain_preds is not None:
-                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
+                write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
             print(
                         "msg: tep img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
                 img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
@@ -1098,7 +1159,7 @@ if __name__ == "__main__":
         mirec_de_runs = []
         mif_de_runs = []
         for n_run in range(n_runs):
-            (mipre, mirec, mif, mipre_de, mirec_de, mif_de, selftrain_preds) = train_conv_net(pp_data, pp_rel_tr, pp_rel_te, pp_rel_de,
+            (mipre, mirec, mif, mipre_de, mirec_de, mif_de, test_preds, _dev_preds, selftrain_preds) = train_conv_net(pp_data, pp_rel_tr, pp_rel_te, pp_rel_de,
                                                                              hlen['problem_problem'],
                                                                              U,
                                                                              fnres='../result/pp_img%s_nhu%s_pad%s.p' % (
@@ -1118,8 +1179,10 @@ if __name__ == "__main__":
                                                                              relname="pp",
                                                                              rel_st=pp_rel_st if selftrain else None,
                                                                              st_threshold=st_threshold)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/pp/", test_preds)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/dev/pp/", _dev_preds)
             if selftrain_preds is not None:
-                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
+                write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
             print(
                         "msg: pp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
                 img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
