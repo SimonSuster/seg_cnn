@@ -1,6 +1,7 @@
 """ yluo - 05/01/2016 creation
 Preprocess i2b2/VA relations to generate data files ready to used by Seg-CNN
 """
+from lexica import lexica
 from file_util import get_file_list
 
 import numpy as np
@@ -11,7 +12,6 @@ from nltk.stem import WordNetLemmatizer
 
 import data_util as du
 from background_knowledge import compatibility, read_drugbank, semclass
-from lexica import lexica
 
 
 trp_rel = ['TrIP', 'TrWP', 'TrCP', 'TrAP', 'TrNAP']
@@ -196,7 +196,8 @@ def build_inst(iid, c1s, c1e, c2s, c2e, sen, vocab, hlen, rel='None', padlen=0, 
               'semclass5': semclass5}
     return datum;
 
-def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, scale_fac=1, lemmatizer=None):
+def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, scale_fac=1, lemmatizer=None, include_selftrain=False):
+    if include_selftrain: return  # don't add None if using selftraining because of the threshold
     for senid in hpair:
         for con_pair in hpair[senid]:
             c1s = con_pair[0][0]
@@ -215,7 +216,7 @@ def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, 
                 rels.append(datum)
 
             
-def load_con(fncon, htrp, htep, hpp, selftrain):
+def load_con(fncon, htrp, htep, hpp, selftrain, include_selftrain):
     hproblem = defaultdict(list)
     htreatment = defaultdict(list)
     htest = defaultdict(list)
@@ -275,11 +276,13 @@ def load_con(fncon, htrp, htep, hpp, selftrain):
                         print('collapsed %s and %s in %d in %s' % (p1, p2, senid, fncon))
 
         # if self-training, create fake rel files based on concept pairs
-        if selftrain:
+        if selftrain and not include_selftrain:
             senids = set(htrp.keys()) | set(htep.keys()) | set(hpp.keys())
             fnrel = re.sub("/concept/", "/rel/", fncon)
             fnrel = re.sub("\.con", ".rel", fnrel)
             with open(fnrel, "w") as fnrel_out:
+                if len(senids) == 0:
+                    fnrel_out.write("")
                 for senid in senids:
                     if senid in htrp:
                         (c1s, c1e), (c2s, c2e) = htrp[senid].keys()[0]  # taking one concept pair is enough, rest will become None
@@ -323,7 +326,7 @@ def load_con(fncon, htrp, htep, hpp, selftrain):
 
     return (hproblem, htreatment, htest)
 
-def load_rel(fnrel, sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_data, mask=False, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, pip_reorder=False, scale_fac=1):
+def load_rel(fnrel, sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_data, mask=False, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, pip_reorder=False, scale_fac=1, include_selftrain=False):
     sen_seen = {}
     fnroot = re.sub(r'^.*/', '', fnrel)
 
@@ -380,13 +383,13 @@ def load_rel(fnrel, sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_d
             else:
                 print('non-matching line %d in %s' % (lc, fnrel))
         # updates trp_data as a side effect with new None data instances
-        add_none_rel(fnroot, htrp, sens, trp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=wordnet_lemmatizer)
-        add_none_rel(fnroot, htep, sens, tep_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=wordnet_lemmatizer)
-        add_none_rel(fnroot, hpp, sens, pp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=wordnet_lemmatizer)
+        add_none_rel(fnroot, htrp, sens, trp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=wordnet_lemmatizer, include_selftrain=include_selftrain)
+        add_none_rel(fnroot, htep, sens, tep_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=wordnet_lemmatizer, include_selftrain=include_selftrain)
+        add_none_rel(fnroot, hpp, sens, pp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, lemmatizer=wordnet_lemmatizer, include_selftrain=include_selftrain)
     return;
 
                             
-def build_data(dn, vocab, hlen, mask=False, padlen=0, hstop={}, skip_concept=False, pip_reorder=False, scale_fac=1, selftrain=False):
+def build_data(dn, vocab, hlen, mask=False, padlen=0, hstop={}, skip_concept=False, pip_reorder=False, scale_fac=1, selftrain=False, include_selftrain=False):
     """
     Loads data 
     """
@@ -416,16 +419,16 @@ def build_data(dn, vocab, hlen, mask=False, padlen=0, hstop={}, skip_concept=Fal
 
         # hproblem: contains all gold problem concepts for a file/doc
         # htrp: contains all possible pairs for a file/doc, updated in load_con as a side effect
-        (hproblem, htreatment, htest) = load_con('%s/%s' % (dncon, fncon), htrp, htep, hpp, selftrain)
+        (hproblem, htreatment, htest) = load_con('%s/%s' % (dncon, fncon), htrp, htep, hpp, selftrain, include_selftrain)
 
         # side effect: updates trp/tep/pp_data; adds None rels:
-        load_rel('%s/%s' % (dnrel, fnrel), sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_data, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, pip_reorder=pip_reorder, scale_fac=scale_fac)
+        load_rel('%s/%s' % (dnrel, fnrel), sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_data, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, pip_reorder=pip_reorder, scale_fac=scale_fac, include_selftrain=include_selftrain)
 
     print(fc)
 
     return trp_data, tep_data, pp_data
 
-def build_train_test_dev(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/', hlen = defaultdict(lambda:defaultdict(float)), padlen=0, fnstop=None, skip_concept=False, pip_reorder=False, scale_fac=1, selftrain=False):
+def build_train_test_dev(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/', hlen = defaultdict(lambda:defaultdict(float)), padlen=0, fnstop=None, skip_concept=False, pip_reorder=False, scale_fac=1, selftrain=False, include_selftrain=False):
     hstop = {}; vocab = defaultdict(float)
     if fnstop != None:
         hstop=load_stoplist(fnstop)
@@ -478,18 +481,20 @@ def build_train_test_dev(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets
 
     if selftrain == True:
         # selftraining on unannotated data
+        #include_selftrain=False  # turn on only when using labeled selftrain data in training
         trp_rel_st, tep_rel_st, pp_rel_st = build_data(
             '%s/concept_assertion_relation_training_data/partners/unannotated/' % (cdn), vocab, hlen,
             mask=True, padlen=padlen, hstop=hstop, skip_concept=skip_concept,
-            pip_reorder=pip_reorder, scale_fac=scale_fac, selftrain=True)
+            pip_reorder=pip_reorder, scale_fac=scale_fac, selftrain=True, include_selftrain=include_selftrain)
         print('st_tr %d' % (len(trp_rel_st)))
         print('st_te %d' % (len(tep_rel_st)))
         print('st_p %d' % (len(pp_rel_st)))
 
-        #print("including selftrain to train")
-        #trp_rel_tr += trp_rel_st
-        #tep_rel_tr += tep_rel_st
-        #pp_rel_tr += pp_rel_st
+        if include_selftrain:
+            print("including selftrain to train")
+            trp_rel_tr += trp_rel_st
+            tep_rel_tr += tep_rel_st
+            pp_rel_tr += pp_rel_st
 
         return trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen, trp_rel_st, tep_rel_st, pp_rel_st
     else:
@@ -541,9 +546,9 @@ def sample_fn_test(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-
         os.rename(cdn + "reference_standard_for_test_data/rel/{}".format(os.path.splitext(base_fn)[0] + ".rel"), new_dev_dir + "rel/" + os.path.splitext(base_fn)[0] + ".rel")
 
 
-def embed_train_test_dev(fnem, fnwid='../data/vocab.txt', fndata='../data/semrel.p', padlen=0, fnstop=None, skip_concept=True, pip_reorder=False, binEmb=False, scale_fac=1, selftrain=False):
+def embed_train_test_dev(fnem, fnwid='../data/vocab.txt', fndata='../data/semrel.p', padlen=0, fnstop=None, skip_concept=True, pip_reorder=False, binEmb=False, scale_fac=1, selftrain=False, include_selftrain=False):
     if selftrain:
-        trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen, trp_rel_st, tep_rel_st, pp_rel_st = build_train_test_dev(padlen=padlen, fnstop=fnstop, skip_concept=skip_concept, pip_reorder=pip_reorder, scale_fac=scale_fac, selftrain=selftrain)
+        trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen, trp_rel_st, tep_rel_st, pp_rel_st = build_train_test_dev(padlen=padlen, fnstop=fnstop, skip_concept=skip_concept, pip_reorder=pip_reorder, scale_fac=scale_fac, selftrain=selftrain, include_selftrain=include_selftrain)
     else:
         trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen = build_train_test_dev(padlen=padlen, fnstop=fnstop, skip_concept=skip_concept, pip_reorder=pip_reorder, scale_fac=scale_fac, selftrain=selftrain)
     fwid = open(fnwid, 'w')
@@ -635,5 +640,6 @@ def empty_rel(ref, d_out):
 if __name__ == "__main__":
     #clamp_to_con(d_clamp="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated_clamp/",
     #             d_out = "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/concept/")
+    print("populating empty relations")
     empty_rel(ref="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/txt/",
               d_out = "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")

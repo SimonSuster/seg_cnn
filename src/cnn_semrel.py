@@ -2,6 +2,7 @@
 This file was extensively rewritten from the sentence CNN code at https://github.com/yoonkim/CNN_sentence by Yoon Kim
 """
 from cnn_classes import LeNetConvPoolLayer, MLPDropout
+from file_util import get_file_list
 
 __author__ = ["Yuan Luo (yuan.hypnos.luo@gmail.com)", "Simon Suster"]
 
@@ -79,7 +80,8 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
                    non_static=True,
                    selftrain=True,
                    relname=None,
-                   rel_st=None):
+                   rel_st=None,
+                   st_threshold=1.):
     """
     Train a simple conv net
     img_h = sentence length (padded where necessary)
@@ -404,10 +406,11 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
                                            semclass4.reshape((semclass4.shape[0], 1)),
                                            semclass5.reshape((semclass5.shape[0], 1)))
     selft_y_pred = classifier.predict(selft_layer1_input)
+    selft_y_pred_p = classifier.predict_p(selft_layer1_input)
 
     selft_error = T.mean(T.neq(selft_y_pred, y))
     selft_model_all = theano.function(
-        [c1, c2, prec, mid, succ, compa1, compa2, semclass1, semclass2, semclass3, semclass4, semclass5], selft_y_pred,
+        [c1, c2, prec, mid, succ, compa1, compa2, semclass1, semclass2, semclass3, semclass4, semclass5], [selft_y_pred, selft_y_pred_p],
         allow_input_downcast=True)
 
 
@@ -465,27 +468,35 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
                 selftrain_preds = defaultdict(list)
                 #test_pred = test_model_all(c1_te, c2_te, prec_te, mid_te, succ_te, compa1_te, compa2_te, semclass1_te,
                 #                           semclass2_te, semclass3_te, semclass4_te, semclass5_te)
-                st_pred = selft_model_all(c1_st, c2_st, prec_st, mid_st, succ_st, compa1_st, compa2_st, semclass1_st,
+                st_pred, st_pred_p = selft_model_all(c1_st, c2_st, prec_st, mid_st, succ_st, compa1_st, compa2_st, semclass1_st,
                                          semclass2_st, semclass3_st, semclass4_st, semclass5_st)
+                if relname == "trp":
+                    inv_d_rel = inv_htrp_rel
+                elif relname == "tep":
+                    inv_d_rel = inv_htep_rel
+                elif relname == "pp":
+                    inv_d_rel = inv_hpp_rel
+                else:
+                    raise NotImplementedError
+
+                with open("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Tools/seg_cnn/images/st_pred_p_dist", "w") as out_f:
+                    c=0
+                    for r, p in zip(st_pred, st_pred_p):
+                        if inv_d_rel[r] != "None":
+                            c += 1
+                            out_f.write("{}\t{}\n".format(c, p.max()))
                 # write out non-None predictions
                 assert len(rel_st) == len(st_pred)
                 for c, i in enumerate(rel_st):
-                    if relname == "trp":
-                        inv_d_rel = inv_htrp_rel
-                    elif relname == "tep":
-                        inv_d_rel = inv_htep_rel
-                    elif relname == "pp":
-                        inv_d_rel = inv_hpp_rel
-                    else:
-                        raise NotImplementedError
                     r = inv_d_rel[st_pred[c]]
-                    if r == "None":
-                        continue
                     # sent as an unannotated list
                     un_sent = i["sen"].replace("[ ", "").replace(" ]treatment", "").replace(" ]problem", "").replace(" ]test", "").split()
                     # get iid: '0449.rel:43 (6,7) (12,13)'
                     inst_id = i["iid"]
                     fname = inst_id.split(":")[0]
+                    if st_pred_p[c].max() < st_threshold or r == "None":
+                        selftrain_preds[fname] = []
+                        continue
                     ln, local_c1_id, local_c2_id = inst_id.split(":")[1].split(" ")
                     local_c1_id = eval(local_c1_id)
                     local_c2_id = eval(local_c2_id)
@@ -870,13 +881,18 @@ def make_idx_data_train_test_dev(rel_tr, rel_te, rel_de, word_idx_map, hlen, hre
     return [train[:n_train] if n_train is not None else train, test, dev, selftr, hi_seg_tr, hi_seg_te, hi_seg_de, hi_seg_st]
 
 
-def write_selftrain(dirname, preds):
+def write_selftrain(dirname, preds, add_missing_from=None):
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     for fn, pred in preds.items():
         with open(dirname+fn, "w") as f_out:
             for p in pred:
                 f_out.write(p+"\n")
+    if add_missing_from is not None:
+        fns = {os.path.basename(f) for f in get_file_list(add_missing_from)} - set(preds.keys())
+        for fn in fns:
+            with open(dirname+fn, "w") as f_out:
+                f_out.write("")
 
 
 if __name__ == "__main__":
@@ -930,6 +946,17 @@ if __name__ == "__main__":
         print('example: -selftrainTrue')
         sys.exit(1)
     assert selftrain in {True, False}
+
+
+    st_threshold = sys.argv[10]
+    mo = re.search('-st_threshold(.+)', st_threshold)
+    if mo:
+        st_threshold = float(mo.group(1))
+    else:
+        print('example: -st_threshold0.9')
+        sys.exit(1)
+    assert 0. <= st_threshold <= 1.
+    print("Selftraining threshold: {}".format(st_threshold))
 
     fndata = '../data/semrel_pp%s_pad%s.p' % (img_w, pad)
     fdata = open(fndata, "rb")
@@ -996,9 +1023,10 @@ if __name__ == "__main__":
                                                                              dropout_rate=[0.0],
                                                                              selftrain=True,
                                                                              relname="trp",
-                                                                             rel_st=trp_rel_st if selftrain else None)
+                                                                             rel_st=trp_rel_st if selftrain else None,
+                                                                             st_threshold=st_threshold)
             if selftrain_preds is not None:
-                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds)
+                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
             print(
                         "msg: trp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
                 img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
@@ -1042,9 +1070,10 @@ if __name__ == "__main__":
                                                                              dropout_rate=[0.0],
                                                                              selftrain=True,
                                                                              relname="tep",
-                                                                             rel_st=tep_rel_st if selftrain else None)
+                                                                             rel_st=tep_rel_st if selftrain else None,
+                                                                             st_threshold=st_threshold)
             if selftrain_preds is not None:
-                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds)
+                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
             print(
                         "msg: tep img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
                 img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
@@ -1087,9 +1116,10 @@ if __name__ == "__main__":
                                                                              dropout_rate=[0.0],
                                                                              selftrain=True,
                                                                              relname="pp",
-                                                                             rel_st=pp_rel_st if selftrain else None)
+                                                                             rel_st=pp_rel_st if selftrain else None,
+                                                                             st_threshold=st_threshold)
             if selftrain_preds is not None:
-                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds)
+                write_selftrain("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/preds/", selftrain_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/concept_assertion_relation_training_data/partners/unannotated/rel/")
             print(
                         "msg: pp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
                 img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
