@@ -634,7 +634,7 @@ def run_model(img_w, l1_nhu, pad, task, n_runs, dropout_prop = 0.0, n_hid_layers
             hidden_units = [l1_nhu]
             for __ in range(n_hid_layers):
                 hidden_units.append(n_hid_units)
-            hidden_units.append(6)  # append output node
+            hidden_units.append(3)  # append output node
 
             (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(tep_data, tep_rel_tr, tep_rel_te,
                                                                              tep_rel_de,
@@ -678,14 +678,12 @@ def run_model(img_w, l1_nhu, pad, task, n_runs, dropout_prop = 0.0, n_hid_layers
         mif_de_runs = []
         cm_de_runs = []
 
-        hidden_units.append(2)
-
         for n_run in range(n_runs):
 
             hidden_units = [l1_nhu]
             for __ in range(n_hid_layers):
                 hidden_units.append(n_hid_units)
-            hidden_units.append(6)  # append output node
+            hidden_units.append(2)  # append output node
 
             (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(pp_data, pp_rel_tr, pp_rel_te, pp_rel_de,
                                                                              hlen['problem_problem'],
@@ -743,7 +741,7 @@ def param_search_classifier(img_w, l1_nhu, pad, task, n_runs = 5):
     for cur_n_hid_layers in hid_layers:
         for cur_n_hid_units in hid_units:
             for cur_dropout in dropout:
-                cur_mif = run_model(img_w, l1_nhu, pad, task, n_runs,  cur_dropout, cur_n_hid_layers, cur_n_hid_units)
+                __, __, __, __, __, cur_mif = run_model(img_w, l1_nhu, pad, task, n_runs,  cur_dropout, cur_n_hid_layers, cur_n_hid_units)
 
                 print("Found score {} for params ({}, {}, {})".format(cur_mif, cur_n_hid_layers, cur_n_hid_units, cur_dropout))
 
