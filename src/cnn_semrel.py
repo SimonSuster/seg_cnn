@@ -530,7 +530,241 @@ def make_idx_data_train_test_dev(rel_tr, rel_te, rel_de, word_idx_map, hlen, hre
     return [train, test, dev, hi_seg_tr, hi_seg_te, hi_seg_de]
   
 
-def run_model():
+def run_model(img_w, l1_nhu, pad, task, n_runs, dropout_prop = 0.0, n_hid_layers = 0, n_hid_units = None, hid_act_fn = ReLU):
+    fndata = '../data/semrel_pp%s_pad%s.p' % (img_w, pad)
+    fdata = open(fndata, "rb")
+    x = cPickle.load(fdata)
+    fdata.close()
+    print("dbg: using data subsets (10 file in each dir)...")
+    trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen, mem, hwoov, hwid = \
+    x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13]
+    for cts in hlen.keys():
+        hlen[cts]['c1'] += 2 * pad
+        hlen[cts]['c2'] += 2 * pad
+    print('msg: %s loaded!' % (fndata))
+    mode = sys.argv[1]
+    word_vectors = sys.argv[2]
+    if mode == "-nonstatic":
+        print "model architecture: CNN-non-static"
+        non_static = True
+    elif mode == "-static":
+        print "model architecture: CNN-static"
+        non_static = False
+    execfile("cnn_classes.py")
+    if word_vectors == "-word2vec":
+        print "using: word2vec vectors"
+        U = mem
+    else:
+        print "unrecognized word_vectors option: %s" % (word_vectors)
+
+    dropout = [dropout_prop]
+    activations = [Iden]
+
+    results = []
+
+    if n_hid_layers != 0 and n_hid_units is None:
+        raise ValueError("Please enter the right number of hidden units for each hidden layer")
+
+    for __ in range(n_hid_layers):
+        dropout.append(dropout_prop)
+        activations.append(hid_act_fn)
+
+    if task == '-trp':
+        trp_data = make_idx_data_train_test_dev(trp_rel_tr, trp_rel_te, trp_rel_de, hwid, hlen['problem_treatment'],
+                                                htrp_rel, k=img_w, filter_h=5, down_sampling=None)
+        mipre_runs = []
+        mirec_runs = []
+        mif_runs = []
+        cm_runs = []
+        mipre_de_runs = []
+        mirec_de_runs = []
+        mif_de_runs = []
+        cm_de_runs = []
+
+        for n_run in range(n_runs):
+            hidden_units = [l1_nhu]
+            for __ in range(n_hid_layers):
+                hidden_units.append(n_hid_units)
+            hidden_units.append(6)  # append output node
+
+            (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(trp_data, trp_rel_tr, trp_rel_te,
+                                                                             trp_rel_de,
+                                                                             hlen['problem_treatment'],
+                                                                             U,
+                                                                             fnres='../result/trp_img%s_nhu%s_pad%s.p' % (
+                                                                             img_w, l1_nhu, pad),
+                                                                             img_w=img_w,
+                                                                             lr_decay=0.95,
+                                                                             filter_hs=[3, 4, 5],
+                                                                             conv_non_linear="relu",
+                                                                             hidden_units=hidden_units,
+                                                                             activations=activations,
+                                                                             shuffle_batch=True,
+                                                                             n_epochs=35,
+                                                                             sqr_norm_lim=9,
+                                                                             non_static=non_static,
+                                                                             batch_size=50,
+                                                                             dropout_rate=dropout)
+            print(
+                        "msg: trp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
+                img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
+            mipre_runs.append(mipre)
+            mirec_runs.append(mirec)
+            mif_runs.append(mif)
+            cm_runs.append(cm)
+            mipre_de_runs.append(mipre_de)
+            mirec_de_runs.append(mirec_de)
+            mif_de_runs.append(mif_de)
+            cm_de_runs.append(cm_de)
+
+    if task == '-tep':
+        tep_data = make_idx_data_train_test_dev(tep_rel_tr, tep_rel_te, tep_rel_de, hwid, hlen['problem_test'],
+                                                htep_rel, k=img_w, filter_h=5)
+        mipre_runs = []
+        mirec_runs = []
+        mif_runs = []
+        cm_runs = []
+        mipre_de_runs = []
+        mirec_de_runs = []
+        mif_de_runs = []
+        cm_de_runs = []
+
+        for n_run in range(n_runs):
+
+            hidden_units = [l1_nhu]
+            for __ in range(n_hid_layers):
+                hidden_units.append(n_hid_units)
+            hidden_units.append(6)  # append output node
+
+            (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(tep_data, tep_rel_tr, tep_rel_te,
+                                                                             tep_rel_de,
+                                                                             hlen['problem_test'],
+                                                                             U,
+                                                                             fnres='../result/tep_img%s_nhu%s_pad%s.p' % (
+                                                                             img_w, l1_nhu, pad),
+                                                                             img_w=img_w,
+                                                                             lr_decay=0.95,
+                                                                             filter_hs=[3, 4, 5],
+                                                                             conv_non_linear="relu",
+                                                                             hidden_units=hidden_units,
+                                                                             activations=activations,
+                                                                             shuffle_batch=True,
+                                                                             n_epochs=25,
+                                                                             sqr_norm_lim=9,
+                                                                             non_static=non_static,
+                                                                             batch_size=50,
+                                                                             dropout_rate=dropout)
+            print(
+                        "msg: tep img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
+                img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
+            mipre_runs.append(mipre)
+            mirec_runs.append(mirec)
+            mif_runs.append(mif)
+            cm_runs.append(cm)
+            mipre_de_runs.append(mipre_de)
+            mirec_de_runs.append(mirec_de)
+            mif_de_runs.append(mif_de)
+            cm_de_runs.append(cm_de)
+
+    if task == '-pp':
+        pp_data = make_idx_data_train_test_dev(pp_rel_tr, pp_rel_te, pp_rel_de, hwid, hlen['problem_problem'], hpp_rel,
+                                               k=img_w, filter_h=5, down_sampling=4)
+        mipre_runs = []
+        mirec_runs = []
+        mif_runs = []
+        cm_runs = []
+        mipre_de_runs = []
+        mirec_de_runs = []
+        mif_de_runs = []
+        cm_de_runs = []
+
+        hidden_units.append(2)
+
+        for n_run in range(n_runs):
+
+            hidden_units = [l1_nhu]
+            for __ in range(n_hid_layers):
+                hidden_units.append(n_hid_units)
+            hidden_units.append(6)  # append output node
+
+            (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(pp_data, pp_rel_tr, pp_rel_te, pp_rel_de,
+                                                                             hlen['problem_problem'],
+                                                                             U,
+                                                                             fnres='../result/pp_img%s_nhu%s_pad%s.p' % (
+                                                                             img_w, l1_nhu, pad),
+                                                                             img_w=img_w,
+                                                                             lr_decay=0.95,
+                                                                             filter_hs=[3, 4, 5],
+                                                                             conv_non_linear="relu",
+                                                                             hidden_units=hidden_units,
+                                                                             activations=activations,
+                                                                             shuffle_batch=True,
+                                                                             n_epochs=35,
+                                                                             sqr_norm_lim=9,
+                                                                             non_static=non_static,
+                                                                             batch_size=50,
+                                                                             dropout_rate=dropout)
+            print(
+                        "msg: pp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
+                img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
+            mipre_runs.append(mipre)
+            mirec_runs.append(mirec)
+            mif_runs.append(mif)
+            cm_runs.append(cm)
+            mipre_de_runs.append(mipre_de)
+            mirec_de_runs.append(mirec_de)
+            mif_de_runs.append(mif_de)
+            cm_de_runs.append(cm_de)
+
+    print("Avg mipre: {}; CI95: {}".format(np.mean(mipre_runs), su.confint(mipre_runs)))
+    print("Avg mirec: {}; CI95: {}".format(np.mean(mirec_runs), su.confint(mirec_runs)))
+    print("Avg mif: {}; CI95: {}".format(np.mean(mif_runs), su.confint(mif_runs)))
+    print("Avg mipre_de: {}; CI95: {}".format(np.mean(mipre_de_runs), su.confint(mipre_de_runs)))
+    print("Avg mirec_de: {}; CI95: {}".format(np.mean(mirec_de_runs), su.confint(mirec_de_runs)))
+    print("Avg mif_de: {}; CI95: {}".format(np.mean(mif_de_runs), su.confint(mif_de_runs)))
+
+    print("Avg confusion matrix test: {}; CI95: {}".format(np.mean(cm_runs, axis=0), su.confint_cm(cm_runs)))
+    print("Avg confusion matrix de: {}; CI95: {}".format(np.mean(cm_de_runs, axis = 0), su.confint_cm(cm_de_runs)))
+
+    return np.mean(mipre_runs), np.mean(mirec_runs), np.mean(mif_runs), np.mean(mipre_de_runs), np.mean(mirec_de_runs), np.mean(mif_de_runs)
+
+
+def param_search_classifier(img_w, l1_nhu, pad, task, n_runs = 5):
+
+    hid_layers = [0, 1, 2]
+    hid_units = [300, 200, 100, 50]
+    dropout = [0.0, 0.1, 0.3, 0.5]
+
+    best_mif = None
+    best_n_hid_layers = None
+    best_n_hid_units = None
+    best_do = None
+
+    for cur_n_hid_layers in hid_layers:
+        for cur_n_hid_units in hid_units:
+            for cur_dropout in dropout:
+                cur_mif = run_model(img_w, l1_nhu, pad, task, n_runs,  cur_dropout, cur_n_hid_layers, cur_n_hid_units)
+
+                print("Found score {} for params ({}, {}, {})".format(cur_mif, cur_n_hid_layers, cur_n_hid_units, cur_dropout))
+
+                if best_mif is None or cur_mif > best_mif:
+                    best_mif = cur_mif
+                    best_n_hid_layers = cur_n_hid_layers
+                    best_n_hid_units = cur_n_hid_units
+                    best_do = cur_dropout
+
+
+    print("The best parameters are: \n"
+          "Number of hidden layers of the classifier: {} \n"
+          "Number of hidden units fo the classifier: {} \n"
+          "Dropout proportion: {} \n"
+          "with a micro F-score of: {}"
+          .format(best_n_hid_layers, best_n_hid_units, best_do, best_mif))
+
+
+
+if __name__=="__main__":
+
     img_w = sys.argv[3]
     mo = re.search('-img_w(\d+)', img_w)
     if mo:
@@ -565,171 +799,5 @@ def run_model():
         print('example: -n_runs1')
         sys.exit(1)
 
-    fndata = '../data/semrel_pp%s_pad%s.p' % (img_w, pad)
-    fdata = open(fndata, "rb")
-    x = cPickle.load(fdata)
-    fdata.close()
-    print("dbg: using data subsets (10 file in each dir)...")
-    trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen, mem, hwoov, hwid = \
-    x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13]
-    for cts in hlen.keys():
-        hlen[cts]['c1'] += 2 * pad
-        hlen[cts]['c2'] += 2 * pad
-    print('msg: %s loaded!' % (fndata))
-    mode = sys.argv[1]
-    word_vectors = sys.argv[2]
-    if mode == "-nonstatic":
-        print "model architecture: CNN-non-static"
-        non_static = True
-    elif mode == "-static":
-        print "model architecture: CNN-static"
-        non_static = False
-    execfile("cnn_classes.py")
-    if word_vectors == "-word2vec":
-        print "using: word2vec vectors"
-        U = mem
-    else:
-        print "unrecognized word_vectors option: %s" % (word_vectors)
-
-    results = []
-
-    if task == '-trp':
-        trp_data = make_idx_data_train_test_dev(trp_rel_tr, trp_rel_te, trp_rel_de, hwid, hlen['problem_treatment'],
-                                                htrp_rel, k=img_w, filter_h=5, down_sampling=None)
-        mipre_runs = []
-        mirec_runs = []
-        mif_runs = []
-        cm_runs = []
-        mipre_de_runs = []
-        mirec_de_runs = []
-        mif_de_runs = []
-        cm_de_runs = []
-        for n_run in range(n_runs):
-            (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(trp_data, trp_rel_tr, trp_rel_te,
-                                                                             trp_rel_de,
-                                                                             hlen['problem_treatment'],
-                                                                             U,
-                                                                             fnres='../result/trp_img%s_nhu%s_pad%s.p' % (
-                                                                             img_w, l1_nhu, pad),
-                                                                             img_w=img_w,
-                                                                             lr_decay=0.95,
-                                                                             filter_hs=[3, 4, 5],
-                                                                             conv_non_linear="relu",
-                                                                             hidden_units=[l1_nhu, 6],
-                                                                             activations=[Iden],
-                                                                             shuffle_batch=True,
-                                                                             n_epochs=35,
-                                                                             sqr_norm_lim=9,
-                                                                             non_static=non_static,
-                                                                             batch_size=50,
-                                                                             dropout_rate=[0.0])
-            print(
-                        "msg: trp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
-                img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
-            mipre_runs.append(mipre)
-            mirec_runs.append(mirec)
-            mif_runs.append(mif)
-            cm_runs.append(cm)
-            mipre_de_runs.append(mipre_de)
-            mirec_de_runs.append(mirec_de)
-            mif_de_runs.append(mif_de)
-            cm_de_runs.append(cm_de)
-
-    if task == '-tep':
-        tep_data = make_idx_data_train_test_dev(tep_rel_tr, tep_rel_te, tep_rel_de, hwid, hlen['problem_test'],
-                                                htep_rel, k=img_w, filter_h=5)
-        mipre_runs = []
-        mirec_runs = []
-        mif_runs = []
-        cm_runs = []
-        mipre_de_runs = []
-        mirec_de_runs = []
-        mif_de_runs = []
-        cm_de_runs = []
-        for n_run in range(n_runs):
-            (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(tep_data, tep_rel_tr, tep_rel_te,
-                                                                             tep_rel_de,
-                                                                             hlen['problem_test'],
-                                                                             U,
-                                                                             fnres='../result/tep_img%s_nhu%s_pad%s.p' % (
-                                                                             img_w, l1_nhu, pad),
-                                                                             img_w=img_w,
-                                                                             lr_decay=0.95,
-                                                                             filter_hs=[3, 4, 5],
-                                                                             conv_non_linear="relu",
-                                                                             hidden_units=[l1_nhu, 3],
-                                                                             activations=[Iden],
-                                                                             shuffle_batch=True,
-                                                                             n_epochs=25,
-                                                                             sqr_norm_lim=9,
-                                                                             non_static=non_static,
-                                                                             batch_size=50,
-                                                                             dropout_rate=[0.0])
-            print(
-                        "msg: tep img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
-                img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
-            mipre_runs.append(mipre)
-            mirec_runs.append(mirec)
-            mif_runs.append(mif)
-            cm_runs.append(cm)
-            mipre_de_runs.append(mipre_de)
-            mirec_de_runs.append(mirec_de)
-            mif_de_runs.append(mif_de)
-            cm_de_runs.append(cm_de)
-
-    if task == '-pp':
-        pp_data = make_idx_data_train_test_dev(pp_rel_tr, pp_rel_te, pp_rel_de, hwid, hlen['problem_problem'], hpp_rel,
-                                               k=img_w, filter_h=5, down_sampling=4)
-        mipre_runs = []
-        mirec_runs = []
-        mif_runs = []
-        cm_runs = []
-        mipre_de_runs = []
-        mirec_de_runs = []
-        mif_de_runs = []
-        cm_de_runs = []
-        for n_run in range(n_runs):
-            (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(pp_data, pp_rel_tr, pp_rel_te, pp_rel_de,
-                                                                             hlen['problem_problem'],
-                                                                             U,
-                                                                             fnres='../result/pp_img%s_nhu%s_pad%s.p' % (
-                                                                             img_w, l1_nhu, pad),
-                                                                             img_w=img_w,
-                                                                             lr_decay=0.95,
-                                                                             filter_hs=[3, 4, 5],
-                                                                             conv_non_linear="relu",
-                                                                             hidden_units=[l1_nhu, 2],
-                                                                             activations=[Iden],
-                                                                             shuffle_batch=True,
-                                                                             n_epochs=35,
-                                                                             sqr_norm_lim=9,
-                                                                             non_static=non_static,
-                                                                             batch_size=50,
-                                                                             dropout_rate=[0.0])
-            print(
-                        "msg: pp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (
-                img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
-            mipre_runs.append(mipre)
-            mirec_runs.append(mirec)
-            mif_runs.append(mif)
-            cm_runs.append(cm)
-            mipre_de_runs.append(mipre_de)
-            mirec_de_runs.append(mirec_de)
-            mif_de_runs.append(mif_de)
-            cm_de_runs.append(cm_de)
-
-    print("Avg mipre: {}; CI95: {}".format(np.mean(mipre_runs), su.confint(mipre_runs)))
-    print("Avg mirec: {}; CI95: {}".format(np.mean(mirec_runs), su.confint(mirec_runs)))
-    print("Avg mif: {}; CI95: {}".format(np.mean(mif_runs), su.confint(mif_runs)))
-    print("Avg mipre_de: {}; CI95: {}".format(np.mean(mipre_de_runs), su.confint(mipre_de_runs)))
-    print("Avg mirec_de: {}; CI95: {}".format(np.mean(mirec_de_runs), su.confint(mirec_de_runs)))
-    print("Avg mif_de: {}; CI95: {}".format(np.mean(mif_de_runs), su.confint(mif_de_runs)))
-
-    print("Avg confusion matrix test: {}; CI95: {}".format(np.mean(cm_runs, axis=0), su.confint_cm(cm_runs)))
-    print("Avg confusion matrix de: {}; CI95: {}".format(np.mean(cm_de_runs, axis = 0), su.confint_cm(cm_de_runs)))
-
-    return np.mean(mipre_runs), np.mean(mirec_runs), np.mean(mif_runs), np.mean(mipre_de_runs), np.mean(mirec_de_runs), np.mean(mif_de_runs)
-
-
-if __name__=="__main__":
-    run_model()
+    # run_model(img_w, l1_nhu, pad, task, n_runs)
+    param_search_classifier(img_w, l1_nhu, pad, task, n_runs)
