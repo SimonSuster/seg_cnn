@@ -318,7 +318,7 @@ def train_conv_net(datasets, rel_tr, rel_te, rel_de, hlen,
             cm_de = dev_cm
             print('mipre %s, mirec %s, mif %s' % (mipre, mirec, mif))
     cPickle.dump([y_te,test_pred], open(fnres, "wb"))
-    return (mipre, mirec, mif, mipre_de, mirec_de, mif_de, cm_de)
+    return (mipre, mirec, mif, test_cm, mipre_de, mirec_de, mif_de, cm_de)
 
 def shared_dataset(data_xy, iid=None, borrow=True):
         """ Function that loads the dataset into shared variables
@@ -599,12 +599,13 @@ def run_model():
         mipre_runs = []
         mirec_runs = []
         mif_runs = []
+        cm_runs = []
         mipre_de_runs = []
         mirec_de_runs = []
         mif_de_runs = []
         cm_de_runs = []
         for n_run in range(n_runs):
-            (mipre, mirec, mif, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(trp_data, trp_rel_tr, trp_rel_te,
+            (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(trp_data, trp_rel_tr, trp_rel_te,
                                                                              trp_rel_de,
                                                                              hlen['problem_treatment'],
                                                                              U,
@@ -628,6 +629,7 @@ def run_model():
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
             mif_runs.append(mif)
+            cm_runs.append(cm)
             mipre_de_runs.append(mipre_de)
             mirec_de_runs.append(mirec_de)
             mif_de_runs.append(mif_de)
@@ -639,12 +641,13 @@ def run_model():
         mipre_runs = []
         mirec_runs = []
         mif_runs = []
+        cm_runs = []
         mipre_de_runs = []
         mirec_de_runs = []
         mif_de_runs = []
         cm_de_runs = []
         for n_run in range(n_runs):
-            (mipre, mirec, mif, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(tep_data, tep_rel_tr, tep_rel_te,
+            (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(tep_data, tep_rel_tr, tep_rel_te,
                                                                              tep_rel_de,
                                                                              hlen['problem_test'],
                                                                              U,
@@ -668,6 +671,7 @@ def run_model():
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
             mif_runs.append(mif)
+            cm_runs.append(cm)
             mipre_de_runs.append(mipre_de)
             mirec_de_runs.append(mirec_de)
             mif_de_runs.append(mif_de)
@@ -679,12 +683,13 @@ def run_model():
         mipre_runs = []
         mirec_runs = []
         mif_runs = []
+        cm_runs = []
         mipre_de_runs = []
         mirec_de_runs = []
         mif_de_runs = []
         cm_de_runs = []
         for n_run in range(n_runs):
-            (mipre, mirec, mif, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(pp_data, pp_rel_tr, pp_rel_te, pp_rel_de,
+            (mipre, mirec, mif, cm, mipre_de, mirec_de, mif_de, cm_de) = train_conv_net(pp_data, pp_rel_tr, pp_rel_te, pp_rel_de,
                                                                              hlen['problem_problem'],
                                                                              U,
                                                                              fnres='../result/pp_img%s_nhu%s_pad%s.p' % (
@@ -707,6 +712,7 @@ def run_model():
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
             mif_runs.append(mif)
+            cm_runs.append(cm)
             mipre_de_runs.append(mipre_de)
             mirec_de_runs.append(mirec_de)
             mif_de_runs.append(mif_de)
@@ -719,6 +725,7 @@ def run_model():
     print("Avg mirec_de: {}; CI95: {}".format(np.mean(mirec_de_runs), su.confint(mirec_de_runs)))
     print("Avg mif_de: {}; CI95: {}".format(np.mean(mif_de_runs), su.confint(mif_de_runs)))
 
+    print("Avg confusion matrix test: {}; CI95: {}".format(np.mean(cm_runs, axis=0), su.confint_cm(cm_runs)))
     print("Avg confusion matrix de: {}; CI95: {}".format(np.mean(cm_de_runs, axis = 0), su.confint_cm(cm_de_runs)))
 
     return np.mean(mipre_runs), np.mean(mirec_runs), np.mean(mif_runs), np.mean(mipre_de_runs), np.mean(mirec_de_runs), np.mean(mif_de_runs)
