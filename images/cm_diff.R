@@ -12,7 +12,13 @@ cm = ggplot(data = f_diff, aes(x=System, y=Gold, fill=value)) +
   geom_tile(color="white") +
   scale_fill_gradient2(low = "green", high = "red", mid = "white", space = "Lab", name="Comp\n - SegCNN") +
   theme_minimal()+
-  
+  theme(plot.title = element_text(color="black", size=20),
+	axis.text.x = element_text(color="black", size=18, vjust=0.5),
+	axis.text.y = element_text(color="black", size=18, angle=90, hjust=0.5),
+	axis.title.x = element_text(color="black", size=20),
+	axis.title.y = element_text(color="black", size=20, angle=90),
+	legend.text = element_text(color="black", size=16),
+    legend.title= element_text(color="black", size=16)) +
   coord_fixed() +
   geom_text(aes(System, Gold, label = value), color = "black", size = 6) +
   scale_y_discrete(limits = rev(levels(f_diff$Gold))) +
@@ -28,6 +34,13 @@ cm = ggplot(data = f_diff, aes(x=System, y=Gold, fill=value)) +
   geom_tile(color="white") +
   scale_fill_gradient2(low = "green", high = "red", mid = "white", space = "Lab", name="Comp\n - SegCNN") +
   theme_minimal()+
+    theme(plot.title = element_text(color="black", size=20),
+	axis.text.x = element_text(color="black", size=18, vjust=0.5),
+	axis.text.y = element_text(color="black", size=18, angle=90, hjust=0.5),
+	axis.title.x = element_text(color="black", size=20),
+	axis.title.y = element_text(color="black", size=20, angle=90),
+	legend.text = element_text(color="black", size=16),
+    legend.title= element_text(color="black", size=16)) +
   coord_fixed() +
   geom_text(aes(System, Gold, label = value), color = "black", size = 7) +
   scale_y_discrete(limits = rev(levels(f_diff$Gold))) +
@@ -43,7 +56,13 @@ cm = ggplot(data = f_diff, aes(x=System, y=Gold, fill=value)) +
   geom_tile(color="white") +
   scale_fill_gradient2(low = "green", high = "red", mid = "white", space = "Lab", name="Comp\n - SegCNN") +
   theme_minimal()+
-  
+    theme(plot.title = element_text(color="black", size=20),
+	axis.text.x = element_text(color="black", size=18, vjust=0.5),
+	axis.text.y = element_text(color="black", size=18, angle=90, hjust=0.5),
+	axis.title.x = element_text(color="black", size=20),
+	axis.title.y = element_text(color="black", size=20, angle=90),
+	legend.text = element_text(color="black", size=16),
+    legend.title= element_text(color="black", size=16)) +
   coord_fixed() +
   geom_text(aes(System, Gold, label = value), color = "black", size = 8) +
   scale_y_discrete(limits = rev(levels(f_diff$Gold))) +
@@ -61,6 +80,13 @@ cm = ggplot(data = f_diff, aes(x=System, y=Gold, fill=value)) +
   geom_tile(color="white") +
   scale_fill_gradient2(low = "green", high = "red", mid = "white", space = "Lab", name="SemClass\n - SegCNN") +
   theme_minimal()+
+    theme(plot.title = element_text(color="black", size=20),
+	axis.text.x = element_text(color="black", size=18, vjust=0.5),
+	axis.text.y = element_text(color="black", size=18, angle=90, hjust=0.5),
+	axis.title.x = element_text(color="black", size=20),
+	axis.title.y = element_text(color="black", size=20, angle=90),
+	legend.text = element_text(color="black", size=16),
+    legend.title= element_text(color="black", size=16)) +
   coord_fixed() +
   geom_text(aes(System, Gold, label = value), color = "black", size = 6) +
   scale_y_discrete(limits = rev(levels(f_diff$Gold))) +
@@ -76,7 +102,13 @@ cm = ggplot(data = f_diff, aes(x=System, y=Gold, fill=value)) +
   geom_tile(color="white") +
   scale_fill_gradient2(low = "green", high = "red", mid = "white", space = "Lab", name="SemClass\n - SegCNN") +
   theme_minimal()+
-  
+    theme(plot.title = element_text(color="black", size=20),
+	axis.text.x = element_text(color="black", size=18, vjust=0.5),
+	axis.text.y = element_text(color="black", size=18, angle=90, hjust=0.5),
+	axis.title.x = element_text(color="black", size=20),
+	axis.title.y = element_text(color="black", size=20, angle=90),
+	legend.text = element_text(color="black", size=16),
+    legend.title= element_text(color="black", size=16)) +
   coord_fixed() +
   geom_text(aes(System, Gold, label = value), color = "black", size = 7) +
   scale_y_discrete(limits = rev(levels(f_diff$Gold))) +
@@ -93,7 +125,13 @@ cm = ggplot(data = f_diff, aes(x=System, y=Gold, fill=value)) +
   geom_tile(color="white") +
   scale_fill_gradient2(low = "green", high = "red", mid = "white", space = "Lab", name="PMI\n - SegCNN") +
   theme_minimal()+
-  
+    theme(plot.title = element_text(color="black", size=20),
+	axis.text.x = element_text(color="black", size=18, vjust=0.5),
+	axis.text.y = element_text(color="black", size=18, angle=90, hjust=0.5),
+	axis.title.x = element_text(color="black", size=20),
+	axis.title.y = element_text(color="black", size=20, angle=90),
+	legend.text = element_text(color="black", size=16),
+    legend.title= element_text(color="black", size=16)) +
   coord_fixed() +
   geom_text(aes(System, Gold, label = value), color = "black", size = 6) +
   scale_y_discrete(limits = rev(levels(f_diff$Gold))) +
@@ -108,7 +146,13 @@ cm = ggplot(data = f_diff, aes(x=System, y=Gold, fill=value)) +
   geom_tile(color="white") +
   scale_fill_gradient2(low = "green", high = "red", mid = "white", space = "Lab", name="PMI\n - SegCNN") +
   theme_minimal()+
-  
+    theme(plot.title = element_text(color="black", size=20),
+	axis.text.x = element_text(color="black", size=18, vjust=0.5),
+	axis.text.y = element_text(color="black", size=18, angle=90, hjust=0.5),
+	axis.title.x = element_text(color="black", size=20),
+	axis.title.y = element_text(color="black", size=20, angle=90),
+	legend.text = element_text(color="black", size=16),
+    legend.title= element_text(color="black", size=16)) +
   coord_fixed() +
   geom_text(aes(System, Gold, label = value), color = "black", size = 7) +
   scale_y_discrete(limits = rev(levels(f_diff$Gold))) +
@@ -123,6 +167,13 @@ cm = ggplot(data = f_diff, aes(x=System, y=Gold, fill=value)) +
   geom_tile(color="white") +
   scale_fill_gradient2(low = "green", high = "red", mid = "white", space = "Lab", name="PMI\n - SegCNN") +
   theme_minimal()+
+    theme(plot.title = element_text(color="black", size=20),
+	axis.text.x = element_text(color="black", size=18, vjust=0.5),
+	axis.text.y = element_text(color="black", size=18, angle=90, hjust=0.5),
+	axis.title.x = element_text(color="black", size=20),
+	axis.title.y = element_text(color="black", size=20, angle=90),
+	legend.text = element_text(color="black", size=16),
+    legend.title= element_text(color="black", size=16)) +
   coord_fixed() +
   geom_text(aes(System, Gold, label = value), color = "black", size = 8) +
   scale_y_discrete(limits = rev(levels(f_diff$Gold))) +
