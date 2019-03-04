@@ -1,4 +1,6 @@
-# Segment CNN for relation classification
+# Segment CNN for relation classification with external features
+This is the code for the paper [Revisiting neural relation classification in clinical notes with external information](http://aclweb.org/anthology/W18-5603), by Simon Šuster, Madhumita Sushil and Walter Daelemans, published at the Workshop on Health Text Mining and Information Analysis (LOUHI), EMNLP, in 2018.
+
 ### Requirements
 Code is written in Python (2.7) and requires Theano (0.9).
 
