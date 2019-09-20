@@ -195,7 +195,7 @@ def build_inst(iid, c1s, c1e, c2s, c2e, sen, vocab, hlen, rel='None', padlen=0, 
               'semclass5': semclass5}
     return datum;
 
-def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, scale_fac=1):
+def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, scale_fac=1, n_none_rels=None):
     for senid in hpair:
         for con_pair in hpair[senid]:
             c1s = con_pair[0][0]
@@ -203,6 +203,14 @@ def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, 
             c2s = con_pair[1][0]
             c2e = con_pair[1][1]
             sen = sens[senid].lower()
+            max_clen = max([c1s, c1e, c2s, c2e])
+            if max_clen > len(sen.split()):
+                print("CLAMP error, skipping")
+                if n_none_rels is not None:
+                    n_none_rels["skipped"] += 1
+                continue
+            if n_none_rels is not None:
+                n_none_rels["none"] += 1
             iid = '%s:%s (%d,%d) (%d,%d)' % (fn, senid, c1s, c1e, c2s, c2e)
             midlen = max(c1s,c2s) - min(c1e,c2e)
             if mid_lmax != None and midlen > mid_lmax:
@@ -212,6 +220,7 @@ def add_none_rel(fn, hpair, sens, rels, vocab, hlen, mask=False, mid_lmax=None, 
 
             if datum != None:
                 rels.append(datum)
+    return n_none_rels
 
             
 def load_con(fncon, htrp, htep, hpp):
@@ -270,7 +279,7 @@ def load_con(fncon, htrp, htep, hpp):
                         print('collapsed %s and %s in %d in %s' % (p1, p2, senid, fncon))
     return (hproblem, htreatment, htest)
 
-def load_rel(fnrel, sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_data, mask=False, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, pip_reorder=False, scale_fac=1):
+def load_rel(fnrel, sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_data, mask=False, padlen=0, hstop={}, hproblem={}, htreatment={}, htest={}, skip_concept=False, pip_reorder=False, scale_fac=1, n_none_rels=None):
     sen_seen = {}
     fnroot = re.sub(r'^.*/', '', fnrel)
 
@@ -326,10 +335,10 @@ def load_rel(fnrel, sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_d
                     print('unrecognized rel %s' % (rel))
             else:
                 print('non-matching line %d in %s' % (lc, fnrel))
-        add_none_rel(fnroot, htrp, sens, trp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac)
-        add_none_rel(fnroot, htep, sens, tep_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac)
-        add_none_rel(fnroot, hpp, sens, pp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac)
-    return;
+        n_none_rels = add_none_rel(fnroot, htrp, sens, trp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, n_none_rels=n_none_rels)
+        n_none_rels = add_none_rel(fnroot, htep, sens, tep_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, n_none_rels=n_none_rels)
+        n_none_rels = add_none_rel(fnroot, hpp, sens, pp_data, vocab, hlen, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, scale_fac=scale_fac, n_none_rels=n_none_rels)
+    return n_none_rels;
 
                             
 def build_data(dn, vocab, hlen, mask=False, padlen=0, hstop={}, skip_concept=False, pip_reorder=False, scale_fac=1):
@@ -343,7 +352,7 @@ def build_data(dn, vocab, hlen, mask=False, padlen=0, hstop={}, skip_concept=Fal
     dnrel = '%s/rel' % (dn)
     dncon = '%s/concept' % (dn)
     fc = 0
-
+    n_none_rels = {"none": 0, "skipped": 0}
     for fntxt in os.listdir(dntxt):
         htrp = defaultdict(dict)
         htep = defaultdict(dict)
@@ -363,9 +372,10 @@ def build_data(dn, vocab, hlen, mask=False, padlen=0, hstop={}, skip_concept=Fal
         (hproblem, htreatment, htest) = load_con('%s/%s' % (dncon, fncon), htrp, htep, hpp)
 
         # side effect: updates trp/tep/pp_data:
-        load_rel('%s/%s' % (dnrel, fnrel), sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_data, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, pip_reorder=pip_reorder, scale_fac=scale_fac)
+        n_none_rels = load_rel('%s/%s' % (dnrel, fnrel), sens, htrp, htep, hpp, vocab, hlen, trp_data, tep_data, pp_data, mask=mask, padlen=padlen, hstop=hstop, hproblem=hproblem, htreatment=htreatment, htest=htest, skip_concept=skip_concept, pip_reorder=pip_reorder, scale_fac=scale_fac, n_none_rels=n_none_rels)
 
     print(fc)
+    print(n_none_rels)
 
     return trp_data, tep_data, pp_data
 
@@ -401,7 +411,8 @@ def build_train_test_dev(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets
     print('fromtest_te %d' % (len(tep_fromtest_tr)))
     print('fromtest_p %d' % (len(pp_fromtest_tr)))
 
-    trp_rel_te, tep_rel_te, pp_rel_te = build_data('%s/reference_standard_for_test_data' % (cdn), vocab, hlen,
+    # here: test data --> use the folder with automatic concept labels:
+    trp_rel_te, tep_rel_te, pp_rel_te = build_data('%s/reference_standard_for_test_data_automatic_concepts' % (cdn), vocab, hlen,
                                                    mask=True, padlen=padlen, hstop=hstop, skip_concept=skip_concept,
                                                    pip_reorder=pip_reorder, scale_fac=scale_fac)
     print('test_tr %d' % (len(trp_rel_te)))
@@ -474,7 +485,7 @@ def sample_fn_test(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-
         os.rename(cdn + "reference_standard_for_test_data/rel/{}".format(os.path.splitext(base_fn)[0] + ".rel"), new_dev_dir + "rel/" + os.path.splitext(base_fn)[0] + ".rel")
 
 
-def embed_train_test_dev(fnem, fnwid='../data/vocab.txt', fndata='../data/semrel.p', padlen=0, fnstop=None, skip_concept=True, pip_reorder=False, binEmb=False, scale_fac=1):
+def embed_train_test_dev(fnem, fnwid='../data_autoconcepts/vocab.txt', fndata='../data_autoconcepts/semrel.p', padlen=0, fnstop=None, skip_concept=True, pip_reorder=False, binEmb=False, scale_fac=1):
     trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen = build_train_test_dev(padlen=padlen, fnstop=fnstop, skip_concept=skip_concept, pip_reorder=pip_reorder, scale_fac=scale_fac)
     fwid = open(fnwid, 'w')
     for wd in sorted(vocab.keys()):

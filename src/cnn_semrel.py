@@ -701,10 +701,13 @@ def convert_write_cm_R(result_f, h_rel, dn):
     write_cm_R(cm, h_rel, dn)
 
 def write_preds(dirname, preds, add_missing_from=None):
+    print("writing predictions:")
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     for fn, pred in preds.items():
         with open(dirname+fn, "w") as f_out:
+            print(dirname+fn)
+            print(pred)
             for p in pred:
                 f_out.write(p+"\n")
     if add_missing_from is not None:
@@ -757,7 +760,7 @@ if __name__=="__main__":
         print('example: -n_train1000')
         sys.exit(1)
 
-    fndata = '../data/semrel_pp%s_pad%s.p' % (img_w, pad)
+    fndata = '../data_autoconcepts/semrel_pp%s_pad%s.p' % (img_w, pad)
     fdata = open(fndata,"rb")
     x = cPickle.load(fdata)
     fdata.close()
@@ -796,7 +799,7 @@ if __name__=="__main__":
             (mipre, mirec, mif, mipre_de, mirec_de, mif_de, test_cm, test_preds) = train_conv_net(trp_data, trp_rel_tr, trp_rel_te, trp_rel_de,
                                                  hlen['problem_treatment'],
                                                  U,
-                                                 fnres='../result/trp_img%s_nhu%s_pad%s.p' % (img_w, l1_nhu, pad),
+                                                 fnres='../result_autoconcepts/trp_img%s_nhu%s_pad%s.p' % (img_w, l1_nhu, pad),
                                                  img_w=img_w,
                                                  lr_decay=0.95,
                                                  filter_hs=[3,4,5],
@@ -810,7 +813,7 @@ if __name__=="__main__":
                                                  batch_size=50,
                                                  dropout_rate=[0.0],
                                                  relname="trp")
-            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/trp/", test_preds)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation_autoconcepts/system/test/trp/", test_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/reference_standard_for_test_data/rel/")
             print("msg: trp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
@@ -835,7 +838,7 @@ if __name__=="__main__":
             (mipre, mirec, mif, mipre_de, mirec_de, mif_de, test_cm, test_preds) = train_conv_net(tep_data,tep_rel_tr, tep_rel_te, tep_rel_de,
                                                  hlen['problem_test'],
                                                  U,
-                                                 fnres='../result/tep_img%s_nhu%s_pad%s.p' % (img_w, l1_nhu, pad),
+                                                 fnres='../result_autoconcepts/tep_img%s_nhu%s_pad%s.p' % (img_w, l1_nhu, pad),
                                                  img_w=img_w,
                                                  lr_decay=0.95,
                                                  filter_hs=[3,4,5],
@@ -849,8 +852,8 @@ if __name__=="__main__":
                                                  dropout_rate=[0.0],
                                                  relname="tep")
             write_preds(
-                "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/tep/",
-                test_preds)
+                "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation_autoconcepts/system/test/tep/",
+                test_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/reference_standard_for_test_data/rel/")
             print("msg: tep img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
@@ -875,7 +878,7 @@ if __name__=="__main__":
             (mipre, mirec, mif, mipre_de, mirec_de, mif_de, test_cm, test_preds) = train_conv_net(pp_data, pp_rel_tr, pp_rel_te, pp_rel_de,
                                                  hlen['problem_problem'],
                                                  U,
-                                                 fnres='../result/pp_img%s_nhu%s_pad%s.p' % (img_w, l1_nhu, pad),
+                                                 fnres='../result_autoconcepts/pp_img%s_nhu%s_pad%s.p' % (img_w, l1_nhu, pad),
                                                  img_w=img_w,
                                                  lr_decay=0.95,
                                                  filter_hs=[3,4,5],
@@ -889,8 +892,8 @@ if __name__=="__main__":
                                                  dropout_rate=[0.0],
                                                  relname="pp")
             write_preds(
-                "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/pp/",
-                test_preds)
+                "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation_autoconcepts/system/test/pp/",
+                test_preds, add_missing_from="/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/reference_standard_for_test_data/rel/")
             print("msg: pp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)

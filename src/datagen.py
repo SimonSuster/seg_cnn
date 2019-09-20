@@ -25,7 +25,7 @@ elif sys.argv[1] == "pp":
     pad = 10
     fnwem = '/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/clinical_embs/mimic_pubmed/mimic_pubmed_lower_shuf400.txt' # 200d
 
-fndata='../data/semrel_pp%s_pad%s.p' % (img_w, pad)
+fndata='../data_autoconcepts/semrel_pp%s_pad%s.p' % (img_w, pad)
 
 mem, hwoov, hwid = cp.embed_train_test_dev(fnwem, fndata=fndata, padlen=pad, scale_fac=scale_fac)
 

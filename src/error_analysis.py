@@ -1,7 +1,7 @@
 import pickle
 
 
-def compare(idx, field_n, preds_file, data_file='data/semrel_pp200_pad7.p'):
+def compare(idx, field_n, preds_file, data_file='data_autoconcepts/semrel_pp200_pad7.p'):
     preds_h = open(preds_file, 'rb')
     golds, preds = pickle.load(preds_h)
     data_h = open(data_file, 'rb')
