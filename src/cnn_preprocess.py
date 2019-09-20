@@ -419,6 +419,19 @@ def build_train_test_dev(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets
     tep_rel_tr = tep_beth_tr + tep_partners_tr + tep_fromtest_tr
     pp_rel_tr = pp_beth_tr + pp_partners_tr + pp_fromtest_tr
 
+    # move {"record-16", "record-19", "record-56", "0150", "0365"} instances to test:
+    trp_rel_tr, reserve_te = split_data_reserve_list(trp_rel_tr)
+    trp_rel_de, reserve_te = split_data_reserve_list(trp_rel_de, reserve_te)
+    trp_rel_te += reserve_te
+
+    tep_rel_tr, reserve_te = split_data_reserve_list(tep_rel_tr)
+    tep_rel_de, reserve_te = split_data_reserve_list(tep_rel_de, reserve_te)
+    tep_rel_te += reserve_te
+
+    pp_rel_tr, reserve_te = split_data_reserve_list(pp_rel_tr)
+    pp_rel_de, reserve_te = split_data_reserve_list(pp_rel_de, reserve_te)
+    pp_rel_te += reserve_te
+
     compa_counter1 = Counter()
     compa_counter2 = Counter()
     for i in trp_rel_tr + trp_rel_de + trp_rel_te:
@@ -427,6 +440,20 @@ def build_train_test_dev(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets
     print(compa_counter1)
     print(compa_counter2)
     return trp_rel_tr, tep_rel_tr, pp_rel_tr, trp_rel_te, tep_rel_te, pp_rel_te, trp_rel_de, tep_rel_de, pp_rel_de, vocab, hlen
+
+
+def split_data_reserve_list(orig_data, reserve_te=None):
+    reserve_for_test = {"record-16", "record-19", "record-56", "0150", "0365"}
+    if reserve_te is None:
+        reserve_te = []
+    new_data = []
+    for i in orig_data:
+        if i["iid"].split(".", 1)[0] in reserve_for_test:
+            reserve_te.append(i)
+        else:
+            new_data.append(i)
+
+    return new_data, reserve_te
 
 
 def sample_fn_test(cdn='/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/', n_to_train=102, n_to_dev=68):

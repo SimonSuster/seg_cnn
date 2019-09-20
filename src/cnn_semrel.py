@@ -810,7 +810,9 @@ if __name__=="__main__":
                                                  batch_size=50,
                                                  dropout_rate=[0.0],
                                                  relname="trp")
-            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/trp/", test_preds)
+            #write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/trp/", test_preds)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/tuur_test/trp/",
+                        test_preds)
             print("msg: trp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
@@ -848,9 +850,10 @@ if __name__=="__main__":
                                                  batch_size=50,
                                                  dropout_rate=[0.0],
                                                  relname="tep")
-            write_preds(
-                "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/tep/",
-                test_preds)
+            #write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/tep/",
+            #    test_preds)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/tuur_test/tep/",
+                        test_preds)
             print("msg: tep img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)
@@ -888,9 +891,10 @@ if __name__=="__main__":
                                                  batch_size=50,
                                                  dropout_rate=[0.0],
                                                  relname="pp")
-            write_preds(
-                "/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/pp/",
-                test_preds)
+            #write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/test/pp/",
+            #    test_preds)
+            write_preds("/mnt/b5320167-5dbd-4498-bf34-173ac5338c8d/Datasets/i2b2-2010/evaluation/system/tuur_test/pp/",
+                        test_preds)
             print("msg: pp img_w: %s, l1_nhu: %s, pad: %s, mipre: %s, mirec: %s, mif: %s, mipre_de: %s, mirec_de: %s, mif_de: %s" % (img_w, l1_nhu, pad, mipre, mirec, mif, mipre_de, mirec_de, mif_de))
             mipre_runs.append(mipre)
             mirec_runs.append(mirec)

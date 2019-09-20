@@ -1,6 +1,8 @@
 """ yluo - 09/25/2014 creation
 common data reading, writing, and transforming utilities. 
 """
+import zipfile
+
 from cnn_semrel import convert_write_cm_R, htrp_rel, htep_rel, hpp_rel
 
 __author__= """Yuan Luo (yuan.hypnos.luo@gmail.com)"""
